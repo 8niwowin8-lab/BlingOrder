@@ -3,24 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder 後台管理 - 售罄控制版</title>
+    <title>BlingOrder 後台管理 - 售罄版</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8f9fa; margin: 0; display: flex; height: 100vh; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #fffafb; margin: 0; display: flex; height: 100vh; }
+        
+        /* 左側：菜單管理欄 */
         .sidebar { width: 320px; background: white; border-right: 2px solid #ffafcc; padding: 20px; overflow-y: auto; }
-        .main-content { flex: 1; padding: 20px; overflow-y: auto; background: #fffafb; }
-        h2 { color: #ff85a2; border-left: 5px solid #ffafcc; padding-left: 10px; margin-bottom: 20px; }
-        .input-group { margin-bottom: 15px; background: #fff0f3; padding: 10px; border-radius: 8px; }
-        input { width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        .btn-add { width: 100%; padding: 10px; background: #ff85a2; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .menu-item { background: white; padding: 12px; border-radius: 10px; margin-top: 10px; border: 1px solid #ffdee9; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .item-controls { display: flex; gap: 5px; margin-top: 10px; }
-        .btn-soldout { flex: 2; border: none; padding: 6px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .status-on { background: #ffca3a; color: #000; }
-        .status-off { background: #6c757d; color: white; }
-        .btn-del { flex: 1; background: #ff4d6d; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .order-card { background: white; border: 2px solid #ffafcc; border-radius: 15px; padding: 15px; margin-bottom: 15px; }
+        .main-content { flex: 1; padding: 20px; display: flex; flex-direction: column; background: #fffafb; overflow-y: auto; }
+        
+        h2 { color: #ff85a2; font-size: 1.2em; border-left: 5px solid #ffafcc; padding-left: 10px; margin-bottom: 15px; }
+        
+        /* 上架表單樣式 */
+        .input-group { background: #fff0f3; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+        input { width: 100%; padding: 10px; margin-top: 8px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn-add { width: 100%; padding: 10px; background: #ff85a2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        
+        /* 菜單列表樣式 - 這是重點！ */
+        .menu-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #ffdee9; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .item-info { display: flex; justify-content: space-between; font-weight: bold; color: #d63384; margin-bottom: 10px; }
+        
+        .item-controls { display: flex; gap: 8px; }
+        .btn-soldout { flex: 2; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .status-on { background: #ffca3a; color: #333; } /* 販售中顯示黃色 */
+        .status-off { background: #6c757d; color: white; } /* 已售罄顯示灰色 */
+        .btn-del { flex: 1; background: #f1f1f1; color: #888; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.8em; }
+
+        /* 右側：訂單顯示樣式 */
+        .order-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .order-card { background: white; border: 2px solid #ffafcc; border-radius: 15px; padding: 15px; }
         .btn-done { width: 100%; background: #28a745; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
@@ -29,20 +41,22 @@
 <div class="sidebar">
     <h2>✨ 菜單管理</h2>
     <div class="input-group">
-        <input type="text" id="menu-name" placeholder="餐點名稱 (如: 硬布丁)">
-        <input type="number" id="menu-price" placeholder="價格 (如: 160)" style="margin-top:10px;">
-        <button class="btn-add" onclick="addMenuItem()" style="margin-top:10px;">上架新餐點</button>
+        <input type="text" id="menu-name" placeholder="餐點名稱">
+        <input type="number" id="menu-price" placeholder="價格">
+        <button class="btn-add" onclick="addMenuItem()">確認上架</button>
     </div>
-    <div id="admin-menu-list"></div>
+    
+    <div id="admin-menu-list">
+        </div>
 </div>
 
 <div class="main-content">
     <h2>🔔 待處理訂單</h2>
-    <div id="pending-orders"></div>
+    <div class="order-container" id="pending-orders"></div>
 </div>
 
 <script>
-    // 請確認下方的 Firebase 配置與您原本的一致
+    // Firebase 配置 (與您目前的資料庫對接)
     const firebaseConfig = {
         apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
         authDomain: "blingorder.firebaseapp.com",
@@ -53,26 +67,38 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // 1. 新增餐點
     function addMenuItem() {
         const name = document.getElementById('menu-name').value;
         const price = parseInt(document.getElementById('menu-price').value);
-        if (!name || !price) return alert("請輸入完整名稱與價格");
-        db.ref('menu/' + Date.now()).set({ name, price, isSoldOut: false });
+        if (!name || !price) return alert("名稱和價格都要填唷！");
+        
+        db.ref('menu/' + Date.now()).set({
+            name: name,
+            price: price,
+            isSoldOut: false // 預設為販售中
+        });
         document.getElementById('menu-name').value = "";
         document.getElementById('menu-price').value = "";
     }
 
+    // 2. 顯示菜單 (包含售罄按鈕邏輯)
     db.ref('menu').on('value', snap => {
-        const list = document.getElementById('admin-menu-list');
-        list.innerHTML = "";
+        const listDiv = document.getElementById('admin-menu-list');
+        listDiv.innerHTML = "";
         snap.forEach(child => {
             const item = child.val();
             const id = child.key;
-            list.innerHTML += `
+            
+            listDiv.innerHTML += `
                 <div class="menu-item">
-                    <strong>${item.name}</strong> - $${item.price}
+                    <div class="item-info">
+                        <span>${item.name}</span>
+                        <span>$${item.price}</span>
+                    </div>
                     <div class="item-controls">
-                        <button class="btn-soldout ${item.isSoldOut ? 'status-off' : 'status-on'}" onclick="toggleSoldOut('${id}', ${item.isSoldOut})">
+                        <button class="btn-soldout ${item.isSoldOut ? 'status-off' : 'status-on'}" 
+                                onclick="toggleSoldOut('${id}', ${item.isSoldOut})">
                             ${item.isSoldOut ? '❌ 已售罄' : '✅ 販售中'}
                         </button>
                         <button class="btn-del" onclick="deleteItem('${id}')">刪除</button>
@@ -82,14 +108,17 @@
         });
     });
 
+    // 3. 切換售罄狀態
     function toggleSoldOut(id, currentStatus) {
         db.ref('menu/' + id).update({ isSoldOut: !currentStatus });
     }
 
+    // 4. 刪除餐點
     function deleteItem(id) {
-        if (confirm("確定要刪除這道菜嗎？")) db.ref('menu/' + id).remove();
+        if(confirm("確定要刪除這道菜嗎？")) db.ref('menu/' + id).remove();
     }
 
+    // 5. 處理訂單
     db.ref('orders').on('value', snap => {
         const pendingDiv = document.getElementById('pending-orders');
         pendingDiv.innerHTML = "";
@@ -98,9 +127,8 @@
             if (order.status === '待處理') {
                 pendingDiv.innerHTML += `
                     <div class="order-card">
-                        <div style="display:flex; justify-content:space-between;">
-                            <strong>${order.table}桌</strong> <small>${order.time}</small>
-                        </div>
+                        <strong>${order.table}桌</strong> <small>${order.time}</small>
+                        <hr>
                         <ul>${order.items.map(i => `<li>${i}</li>`).join('')}</ul>
                         <div style="text-align:right;">總計: $${order.total}</div>
                         <button class="btn-done" onclick="db.ref('orders/${child.key}').update({status:'已完成'})">完成出餐</button>
