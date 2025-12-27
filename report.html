@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>BO 數據大數據儀表板</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #fdf2f2; color: #6d4c41; margin: 0; padding: 20px; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; max-width: 1200px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; }
+        h2 { color: #ff85a2; font-size: 1.2em; margin-top: 0; }
+        .big-number { font-size: 2.5em; font-weight: bold; color: #ff4d7d; margin: 10px 0; }
+        .filter-nav { text-align: center; margin-bottom: 20px; }
+        .btn-filter { background: white; border: 1px solid #ffafcc; color: #ff85a2; padding: 10px 25px; border-radius: 20px; cursor: pointer; margin: 0 5px; font-weight: bold; }
+        .btn-filter.active { background: #ffafcc; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="filter-nav">
+    <h1 style="color: #ff85a2;">BlingOrder 經營分析報表 ✨</h1>
+    <button class="btn-filter active" id="btn-day" onclick="updateDashboard('day')">本日</button>
+    <button class="btn-filter" id="btn-week" onclick="updateDashboard('week')">本週</button>
+    <button class="btn-filter" id="btn-month" onclick="updateDashboard('month')">本月</button>
+</div>
+
+<div class="dashboard">
+    <div class="card">
+        <h2>💰 總營業額</h2>
+        <div class="big-number">$<span id="rev-total">0</span></div>
+        <p id="time-label">今日數據載入中...</p>
+    </div>
+
+    <div class="card">
+        <h2>單量統計</h2>
+        <div class="big-number"><span id="order-count">0</span> 筆</div>
+        <p>已完成出餐</p>
+    </div>
+
+    <div class="card">
+        <h2>🍰 餐點銷售佔比</h2>
+        <canvas id="pieChart"></canvas>
+    </div>
+
+    <div class="card">
+        <h2>📈 銷售排行</h2>
+        <div id="rank-list" style="text-align: left; margin-top: 15px;"></div>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
+        authDomain: "blingorder.firebaseapp.com",
+        projectId: "blingorder",
+        databaseURL: "https://blingorder-default-rtdb.firebaseio.com", 
+        appId: "1:798993901664:web:9c2023b419ae099fe9fb05"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let allOrders = [];
+    let myPieChart = null;
+
+    db.ref('orders').on('value', snap => {
+        allOrders = [];
+        snap.forEach(child => {
+            const data = child.val();
+            // 關鍵：報表只會抓「已完成」的訂單
+            if (data.status === "已完成") {
+                allOrders.push(data);
+            }
+        });
+        updateDashboard('day');
+    });
+
+    function updateDashboard(range) {
+        // 更新按鈕樣式
+        document.querySelectorAll('.btn-filter').forEach(btn => btn.classList.remove('active'));
+        if(range === 'day') document.getElementById('btn-day').classList.add('active');
+        if(range === 'week') document.getElementById('btn-week').classList.add('active');
+        if(range === 'month') document.getElementById('btn-month').classList.add('active');
+
+        const now = new Date();
+        let filteredOrders = allOrders.filter(order => {
+            const orderDate = new Date(order.timestamp);
+            
+            if (range === 'day') {
+                return orderDate.toDateString() === now.toDateString();
+            } else if (range === 'week') {
+                const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                return orderDate > oneWeekAgo;
+            } else if (range === 'month') {
+                return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
+            }
+        });
+
+        let revenue = 0;
+        let itemCounts = {};
+        filteredOrders.forEach(o => {
+            revenue += o.total;
+            o.items.forEach(item => {
+                itemCounts[item] = (itemCounts[item] || 0) + 1;
+            });
+        });
+
+        document.getElementById('rev-total').innerText = revenue;
+        document.getElementById('order-count').innerText = filteredOrders.length;
+        document.getElementById('time-label').innerText = range === 'day' ? '今日數據' : (range === 'week' ? '近 7 日數據' : '本月數據');
+
+        drawChart(itemCounts);
+        drawRank(itemCounts);
+    }
+
+    function drawChart(itemCounts) {
+        const ctx = document.getElementById('pieChart').getContext('2d');
+        if (myPieChart) myPieChart.destroy();
+        
+        const labels = Object.keys(itemCounts);
+        if (labels.length === 0) return;
+
+        myPieChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: Object.values(itemCounts),
+                    backgroundColor: ['#ffafcc', '#ffca3a', '#8ecae6', '#bde0fe', '#a2d2ff']
+                }]
+            }
+        });
+    }
+
+    function drawRank(itemCounts) {
+        const rankList = document.getElementById('rank-list');
+        const sorted = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]);
+        rankList.innerHTML = sorted.map((s, i) => `
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+                <span>${i+1}. ${s[0]}</span>
+                <strong>${s[1]} 份</strong>
+            </div>
+        `).join('');
+    }
+</script>
+</body>
+</html>

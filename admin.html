@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>BO 後台管理 - 詳細紀錄版</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #fdf2f2; color: #6d4c41; display: grid; grid-template-columns: 280px 1fr 350px; gap: 20px; }
+        .section { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow-y: auto; max-height: 90vh; }
+        h2 { color: #ff85a2; border-bottom: 2px solid #ff85a2; padding-bottom: 10px; font-size: 1.2em; }
+        .order-card { background: #fff; border: 2px solid #ffafcc; border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+        .btn-done { background: #4caf50; color: white; border: none; padding: 8px; border-radius: 10px; cursor: pointer; width: 100%; font-weight: bold; }
+        
+        /* 歷史明細樣式 */
+        .history-item { font-size: 0.85em; padding: 8px; border-bottom: 1px solid #eee; display: flex; flex-direction: column; }
+        .history-time { color: #999; font-size: 0.8em; }
+        .history-detail { display: flex; justify-content: space-between; margin-top: 3px; }
+        .tag { background: #ffafcc; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
+        
+        .total-money { font-size: 1.2em; color: #ff4d7d; font-weight: bold; text-align: center; margin: 15px 0; padding: 10px; background: #fff0f5; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="section">
+    <h2>✨ 菜單管理</h2>
+    <input type="text" id="name" placeholder="名稱" style="width:100%; margin-bottom:5px; padding:8px;">
+    <input type="number" id="price" placeholder="價格" style="width:100%; margin-bottom:5px; padding:8px;">
+    <button onclick="addItem()" style="width:100%; background:#ff85a2; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer;">上架</button>
+    <div id="menu-admin" style="margin-top:20px;"></div>
+</div>
+
+<div class="section">
+    <h2>🔔 待處理訂單</h2>
+    <div id="order-list"></div>
+</div>
+
+<div class="section">
+    <h2>📊 今日營運紀錄</h2>
+    <div class="total-money">今日營收: $<span id="day-revenue">0</span></div>
+    
+    <h3 style="font-size: 1em; color: #ff85a2;">📋 銷售明細 (按時間排序)</h3>
+    <div id="history-list">載入中...</div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
+        authDomain: "blingorder.firebaseapp.com",
+        projectId: "blingorder",
+        databaseURL: "https://blingorder-default-rtdb.firebaseio.com",
+        appId: "1:798993901664:web:9c2023b419ae099fe9fb05"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function addItem() {
+        const name = document.getElementById('name').value;
+        const price = document.getElementById('price').value;
+        if(name && price) db.ref('menu').push({ name, price: parseInt(price) });
+    }
+
+    db.ref('menu').on('value', snap => {
+        const div = document.getElementById('menu-admin');
+        div.innerHTML = "";
+        snap.forEach(child => {
+            div.innerHTML += `<div style="padding:5px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
+                <span>${child.val().name}</span>
+                <button onclick="db.ref('menu/${child.key}').remove()" style="font-size:0.7em;">刪除</button>
+            </div>`;
+        });
+    });
+
+    // 監聽訂單
+    db.ref('orders').on('value', (snapshot) => {
+        const orderList = document.getElementById('order-list');
+        const historyList = document.getElementById('history-list');
+        orderList.innerHTML = "";
+        historyList.innerHTML = "";
+        
+        let totalRevenue = 0;
+        const data = snapshot.val();
+        
+        if (data) {
+            // 將物件轉成陣列並排序（時間新的在上面）
+            const sortedOrders = Object.keys(data).map(key => ({
+                id: key,
+                ...data[key]
+            })).sort((a, b) => b.id - a.id);
+
+            sortedOrders.forEach(order => {
+                // 1. 處理待出餐訂單
+                if (order.status === "待處理") {
+                    orderList.innerHTML += `
+                        <div class="order-card">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span class="tag">桌號: ${order.table}</span>
+                                <span style="font-size:0.8em; color:#999;">${order.time}</span>
+                            </div>
+                            <p style="font-size:1.1em; margin:10px 0;">${order.items.join('、')}</p>
+                            <button class="btn-done" onclick="finishOrder('${order.id}')">完成出餐</button>
+                        </div>`;
+                } 
+                
+                // 2. 處理已完成明細
+                if (order.status === "已完成") {
+                    totalRevenue += order.total;
+                    historyList.innerHTML += `
+                        <div class="history-item">
+                            <div class="history-time">${order.fullDate || '今天'} ${order.time}</div>
+                            <div class="history-detail">
+                                <span><strong>${order.table}桌</strong>: ${order.items.join('、')}</span>
+                                <span style="color:#ff4d7d;">$${order.total}</span>
+                            </div>
+                        </div>`;
+                }
+            });
+        }
+        document.getElementById('day-revenue').innerText = totalRevenue;
+    });
+
+    function finishOrder(id) {
+        // 完成時自動補上年月日資訊
+        const now = new Date();
+        const fullDate = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+        db.ref('orders/' + id).update({ 
+            status: "已完成",
+            fullDate: fullDate 
+        });
+    }
+</script>
+</body>
+</html>
