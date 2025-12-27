@@ -3,33 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder 後台 - 售罄按鈕版</title>
+    <title>BlingOrder 後台管理 (2.0 統計強化版)</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
-        body { font-family: sans-serif; background: #fffafb; display: flex; margin: 0; height: 100vh; }
-        .sidebar { width: 300px; background: white; border-right: 2px solid #ffafcc; padding: 20px; }
-        .menu-item { background: white; border: 1px solid #ffdee9; padding: 15px; border-radius: 10px; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .btn-soldout { background: #ffca3a; border: none; padding: 8px; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #fffafb; margin: 0; display: flex; height: 100vh; }
+        .sidebar { width: 320px; background: white; border-right: 2px solid #ffafcc; padding: 20px; overflow-y: auto; }
+        .main-content { flex: 1; padding: 20px; overflow-y: auto; background: #fffafb; }
+        .stats-panel { width: 300px; background: white; border-left: 2px solid #ffafcc; padding: 20px; overflow-y: auto; }
+        
+        h2 { color: #ff85a2; font-size: 1.2em; border-left: 5px solid #ffafcc; padding-left: 10px; margin-bottom: 15px; }
+        
+        /* 菜單管理 */
+        .input-group { background: #fff0f3; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+        input { width: 100%; padding: 10px; margin-top: 8px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn-add { width: 100%; padding: 10px; background: #ff85a2; color: white; border: none; border-radius: 8px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        
+        .menu-item { background: white; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #ffdee9; }
+        .item-info { display: flex; justify-content: space-between; font-weight: bold; color: #d63384; margin-bottom: 8px; }
+        .btn-soldout { background: #ffca3a; border: none; padding: 6px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 65%; }
         .btn-soldout.off { background: #6c757d; color: white; }
-        .btn-del { background: #eee; border: none; padding: 5px; border-radius: 5px; margin-top: 5px; width: 100%; cursor: pointer; color: #888; }
-        .main { flex: 1; padding: 20px; }
-        input { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        .btn-add { background: #ff85a2; color: white; border: none; width: 100%; padding: 10px; border-radius: 5px; font-weight: bold; }
+        .btn-del { background: #f1f1f1; border: none; padding: 6px; border-radius: 5px; cursor: pointer; color: #888; width: 30%; }
+
+        /* 訂單卡片 */
+        .order-card { background: white; border: 2px solid #ffafcc; border-radius: 15px; padding: 15px; margin-bottom: 15px; }
+        .btn-done { width: 100%; background: #28a745; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+        /* 數據統計 */
+        .revenue-box { background: #fff0f3; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
+        .revenue-amount { font-size: 24px; color: #d63384; font-weight: bold; }
+        .detail-item { font-size: 0.85em; border-bottom: 1px solid #eee; padding: 8px 0; color: #555; }
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <h2>✨ 菜單管理 (版本 2.0 - 售罄版)</h2>
+
+<div class="sidebar">
+    <h2>✨ 菜單管理 (v2.0)</h2>
+    <div class="input-group">
         <input type="text" id="name" placeholder="餐點名稱">
         <input type="number" id="price" placeholder="價格">
         <button class="btn-add" onclick="addItem()">確認上架</button>
-        <div id="list"></div>
     </div>
-    <div class="main">
-        <h2 style="color:#ff85a2">🔔 待處理訂單</h2>
-        <div id="orders"></div>
+    <div id="list"></div>
+</div>
+
+<div class="main-content">
+    <h2>🔔 待處理訂單</h2>
+    <div id="orders"></div>
+</div>
+
+<div class="stats-panel">
+    <h2>📊 今日營運數據</h2>
+    <div class="revenue-box">
+        今日總營收<br>
+        <span class="revenue-amount">$<span id="total-revenue">0</span></span>
     </div>
+    <h3>📋 銷售明細</h3>
+    <div id="sales-detail"></div>
+</div>
 
 <script>
     const firebaseConfig = {
@@ -42,10 +73,15 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // 1. 菜單管理邏輯
     function addItem() {
         const name = document.getElementById('name').value;
         const price = document.getElementById('price').value;
-        if(name && price) db.ref('menu/' + Date.now()).set({ name, price, isSoldOut: false });
+        if(name && price) {
+            db.ref('menu/' + Date.now()).set({ name, price, isSoldOut: false });
+            document.getElementById('name').value = "";
+            document.getElementById('price').value = "";
+        }
     }
 
     db.ref('menu').on('value', snap => {
@@ -55,32 +91,54 @@
             const item = c.val();
             div.innerHTML += `
                 <div class="menu-item">
-                    <b>${item.name}</b> ($${item.price})
+                    <div class="item-info"><span>${item.name}</span><span>$${item.price}</span></div>
                     <button class="btn-soldout ${item.isSoldOut ? 'off' : ''}" onclick="toggle('${c.key}', ${item.isSoldOut})">
                         ${item.isSoldOut ? '❌ 已售罄' : '✅ 販售中'}
                     </button>
-                    <button class="btn-del" onclick="db.ref('menu/${c.key}').remove()">刪除項目</button>
-                </div>
-            `;
+                    <button class="btn-del" onclick="db.ref('menu/${c.key}').remove()">刪除</button>
+                </div>`;
         });
     });
 
     function toggle(id, status) { db.ref('menu/' + id).update({ isSoldOut: !status }); }
 
+    // 2. 訂單與統計邏輯
     db.ref('orders').on('value', snap => {
-        const div = document.getElementById('orders');
-        div.innerHTML = "";
-        snap.forEach(c => {
-            const o = c.val();
+        const orderDiv = document.getElementById('orders');
+        const detailDiv = document.getElementById('sales-detail');
+        let totalRevenue = 0;
+        
+        orderDiv.innerHTML = "";
+        detailDiv.innerHTML = "";
+        
+        const ordersArray = [];
+        snap.forEach(c => { ordersArray.push({key: c.key, ...c.val()}); });
+        ordersArray.reverse(); // 讓最新的訂單排在前面
+
+        ordersArray.forEach(o => {
+            // 計算總營收 (已完成的訂單)
+            if(o.status === '已完成') {
+                totalRevenue += parseInt(o.total);
+                detailDiv.innerHTML += `
+                    <div class="detail-item">
+                        <b>${o.table}桌</b> - $${o.total}<br>
+                        <small>${o.time}</small>
+                    </div>`;
+            }
+
+            // 顯示待處理訂單
             if(o.status === '待處理') {
-                div.innerHTML += `<div style="border:2px solid #ffafcc; padding:10px; margin-bottom:10px; border-radius:10px; background:white;">
-                    <b>${o.table}桌</b> - $${o.total}<br>
-                    <button onclick="db.ref('orders/${c.key}').update({status:'已完成'})" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:5px; margin-top:10px;">完成出餐</button>
-                </div>`;
+                orderDiv.innerHTML += `
+                    <div class="order-card">
+                        <b>${o.table}桌</b> <small>${o.time}</small><hr>
+                        <ul>${o.items.map(i => `<li>${i}</li>`).join('')}</ul>
+                        <div style="text-align:right; font-weight:bold;">總計: $${o.total}</div>
+                        <button class="btn-done" onclick="db.ref('orders/${o.key}').update({status:'已完成'})">完成出餐</button>
+                    </div>`;
             }
         });
+        document.getElementById('total-revenue').innerText = totalRevenue;
     });
 </script>
 </body>
 </html>
-
