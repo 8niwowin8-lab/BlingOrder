@@ -7,35 +7,29 @@
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #fffafb; margin: 0; padding-bottom: 100px; }
-        .header { background: #ffafcc; color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .table-info { background: #ffca3a; color: #333; padding: 5px; font-weight: bold; margin-bottom: 10px; border-radius: 5px; display: inline-block; padding: 5px 15px; }
-        .menu-container { padding: 15px; }
-        .item-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #ffdee9; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .item-card.sold-out { opacity: 0.5; filter: grayscale(1); }
-        .item-info h3 { margin: 0; color: #ff85a2; }
-        .item-price { color: #888; margin-top: 5px; }
-        .btn-add { background: #ffafcc; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
-        .btn-add:disabled { background: #ccc; cursor: not-allowed; }
-        .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 15px; border-top: 2px solid #ffafcc; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
-        .btn-submit { background: #ff85a2; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1.1em; font-weight: bold; }
+        body { font-family: sans-serif; background-color: #fffafb; margin: 0; padding-bottom: 80px; }
+        .header { background: #ffafcc; color: white; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; }
+        .table-info { background: #ffca3a; padding: 10px; text-align: center; font-weight: bold; }
+        .item-card { background: white; margin: 10px; padding: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .item-info b { font-size: 18px; color: #ff85a2; }
+        .btn-add { background: #ff85a2; color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; }
+        
+        /* 售罄樣式 */
+        .sold-out { opacity: 0.5; filter: grayscale(1); pointer-events: none; position: relative; }
+        .sold-out::after { content: "已售罄"; position: absolute; right: 20px; color: red; font-weight: bold; border: 2px solid red; padding: 2px 5px; transform: rotate(-15deg); }
+
+        .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); box-sizing: border-box; }
+        .btn-submit { background: #ff85a2; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-size: 16px; }
     </style>
 </head>
 <body>
-
-<div class="header">
-    <h1>BlingOrder ✨</h1>
-    <div class="table-info" id="display-table">桌號：未定</div>
-</div>
-
-<div class="menu-container" id="menu-list">
-    <p style="text-align:center;">菜單讀取中...</p>
-</div>
-
-<div class="footer">
-    <div style="font-size: 1.2em; font-weight: bold;">總計: $<span id="total-price">0</span></div>
-    <button class="btn-submit" onclick="submitOrder()">送出訂單 🚀</button>
-</div>
+    <div class="header">BlingOrder ✨</div>
+    <div class="table-info" id="table-display">📍 目前位置：桌號載入中...</div>
+    <div id="menu-list"></div>
+    <div class="footer">
+        <div>總計: $<span id="total-price">0</span></div>
+        <button class="btn-submit" onclick="submitOrder()">送出訂單 🚀</button>
+    </div>
 
 <script>
     const firebaseConfig = {
@@ -49,30 +43,26 @@
     const db = firebase.database();
 
     const urlParams = new URLSearchParams(window.location.search);
-    const tableNo = urlParams.get('table') || "未定";
-    document.getElementById('display-table').innerText = "📍 目前位置：桌號 " + tableNo;
+    const tableNum = urlParams.get('table') || "未知";
+    document.getElementById('table-display').innerText = "📍 目前位置：桌號 " + tableNum;
 
     let cart = [];
-    let totalPrice = 0;
+    let total = 0;
 
-    // 即時從資料庫讀取菜單
+    // 監聽菜單，包含售罄判斷
     db.ref('menu').on('value', snap => {
-        const menuList = document.getElementById('menu-list');
-        menuList.innerHTML = "";
+        const list = document.getElementById('menu-list');
+        list.innerHTML = "";
         snap.forEach(child => {
             const item = child.val();
-            const soldOutClass = item.isSoldOut ? 'sold-out' : '';
-            const btnText = item.isSoldOut ? '售罄' : '加入';
-            
-            menuList.innerHTML += `
-                <div class="item-card ${soldOutClass}">
+            const isSoldOut = item.isSoldOut === true;
+            list.innerHTML += `
+                <div class="item-card ${isSoldOut ? 'sold-out' : ''}">
                     <div class="item-info">
-                        <h3>${item.name}</h3>
-                        <div class="item-price">$${item.price}</div>
+                        <b>${item.name}</b><br>
+                        <small>$${item.price}</small>
                     </div>
-                    <button class="btn-add" ${item.isSoldOut ? 'disabled' : ''} onclick="addToCart('${item.name}', ${item.price})">
-                        ${btnText}
-                    </button>
+                    <button class="btn-add" onclick="addToCart('${item.name}', ${item.price})">加入</button>
                 </div>
             `;
         });
@@ -80,23 +70,21 @@
 
     function addToCart(name, price) {
         cart.push(name);
-        totalPrice += price;
-        document.getElementById('total-price').innerText = totalPrice;
+        total += price;
+        document.getElementById('total-price').innerText = total;
     }
 
     function submitOrder() {
-        if (cart.length === 0) return alert("請至少選擇一項餐點唷！");
-        const orderData = {
-            table: tableNo,
+        if(cart.length === 0) return alert("還沒選餐點唷！");
+        db.ref('orders/' + Date.now()).set({
+            table: tableNum,
             items: cart,
-            total: totalPrice,
-            time: new Date().toLocaleTimeString(),
-            status: "待處理"
-        };
-        db.ref('orders').push(orderData).then(() => {
+            total: total,
+            status: "待處理",
+            time: new Date().toLocaleTimeString()
+        }).then(() => {
             alert("訂單已送出！請稍候餐點 ✨");
-            cart = [];
-            totalPrice = 0;
+            cart = []; total = 0;
             document.getElementById('total-price').innerText = "0";
         });
     }
