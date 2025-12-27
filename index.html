@@ -6,128 +6,100 @@
     <title>BlingOrder - 點餐頁面</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
-
     <style>
-        /* 這裡負責網頁的樣子：粉嫩可愛風 */
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #fffaf0; margin: 0; padding-bottom: 100px; color: #6d4c41; }
-        header { background-color: #ffafcc; color: white; padding: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .table-info { background: #ffca3a; color: #6d4c41; padding: 5px; font-weight: bold; font-size: 0.9em; }
-        .menu-container { padding: 10px; }
-        .item-card { background: white; margin-bottom: 10px; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .item-info b { font-size: 1.1em; color: #ff85a2; }
-        .add-btn { background-color: #ffafcc; color: white; border: none; padding: 10px 18px; border-radius: 20px; cursor: pointer; font-weight: bold; }
-        .add-btn:active { background-color: #fb6f92; transform: scale(0.95); }
-        
-        /* 底部購物車欄位 */
-        .footer-bar { position: fixed; bottom: 0; width: 100%; background: white; border-top: 3px solid #ffafcc; padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; }
-        .total-text { font-size: 1.2em; font-weight: bold; }
-        .submit-btn { background-color: #ff85a2; color: white; border: none; padding: 12px 25px; border-radius: 25px; font-size: 1em; font-weight: bold; cursor: pointer; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #fffafb; margin: 0; padding-bottom: 100px; }
+        .header { background: #ffafcc; color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .table-info { background: #ffca3a; color: #333; padding: 5px; font-weight: bold; margin-bottom: 10px; border-radius: 5px; display: inline-block; padding: 5px 15px; }
+        .menu-container { padding: 15px; }
+        .item-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #ffdee9; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .item-card.sold-out { opacity: 0.5; filter: grayscale(1); }
+        .item-info h3 { margin: 0; color: #ff85a2; }
+        .item-price { color: #888; margin-top: 5px; }
+        .btn-add { background: #ffafcc; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+        .btn-add:disabled { background: #ccc; cursor: not-allowed; }
+        .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 15px; border-top: 2px solid #ffafcc; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
+        .btn-submit { background: #ff85a2; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1.1em; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<header>
-    <div style="font-size: 1.5em; letter-spacing: 2px;">BlingOrder ✨</div>
-    <div class="table-info" id="display-table">正在偵測桌號...</div>
-</header>
-
-<div class="menu-container" id="menu-list">
-    <p style="text-align: center; color: #999;">載入菜單中，請稍候...</p>
+<div class="header">
+    <h1>BlingOrder ✨</h1>
+    <div class="table-info" id="display-table">桌號：未定</div>
 </div>
 
-<div class="footer-bar">
-    <div class="total-text">總計: $<span id="total-price">0</span></div>
-    <button class="submit-btn" onclick="submitOrder()">送出訂單 🚀</button>
+<div class="menu-container" id="menu-list">
+    <p style="text-align:center;">菜單讀取中...</p>
+</div>
+
+<div class="footer">
+    <div style="font-size: 1.2em; font-weight: bold;">總計: $<span id="total-price">0</span></div>
+    <button class="btn-submit" onclick="submitOrder()">送出訂單 🚀</button>
 </div>
 
 <script>
-    // --- 1. 這是你的 Firebase 連線設定 (請勿更動) ---
     const firebaseConfig = {
         apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
         authDomain: "blingorder.firebaseapp.com",
         projectId: "blingorder",
-        storageBucket: "blingorder.firebasestorage.app",
-        messagingSenderId: "798993901664",
+        databaseURL: "https://blingorder-default-rtdb.firebaseio.com",
         appId: "1:798993901664:web:9c2023b419ae099fe9fb05"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // --- 2. 抓取網址裡的桌號 (例如 ?table=A1) ---
     const urlParams = new URLSearchParams(window.location.search);
-    const tableNo = urlParams.get('table') || "未定義";
+    const tableNo = urlParams.get('table') || "未定";
     document.getElementById('display-table').innerText = "📍 目前位置：桌號 " + tableNo;
 
-    // --- 3. 點餐邏輯變數 ---
-    let myCart = [];
-    let myTotal = 0;
+    let cart = [];
+    let totalPrice = 0;
 
-    // --- 4. 自動從雲端抓取最新菜單 ---
-    db.ref('menu').on('value', (snapshot) => {
+    // 即時從資料庫讀取菜單
+    db.ref('menu').on('value', snap => {
         const menuList = document.getElementById('menu-list');
-        menuList.innerHTML = ""; // 先清空舊內容
-        
-        const data = snapshot.val();
-        if (!data) {
-            menuList.innerHTML = "<p style='text-align:center;'>目前沒有上架任何餐點喔！</p>";
-            return;
-        }
-
-        // 把雲端的餐點一個一個畫出來
-        for (let id in data) {
-            const item = data[id];
-            const itemHtml = `
-                <div class="item-card">
+        menuList.innerHTML = "";
+        snap.forEach(child => {
+            const item = child.val();
+            const soldOutClass = item.isSoldOut ? 'sold-out' : '';
+            const btnText = item.isSoldOut ? '售罄' : '加入';
+            
+            menuList.innerHTML += `
+                <div class="item-card ${soldOutClass}">
                     <div class="item-info">
-                        <b>${item.name}</b><br>
-                        <small>$${item.price}</small>
+                        <h3>${item.name}</h3>
+                        <div class="item-price">$${item.price}</div>
                     </div>
-                    <button class="add-btn" onclick="addToCart('${item.name}', ${item.price})">加入</button>
+                    <button class="btn-add" ${item.isSoldOut ? 'disabled' : ''} onclick="addToCart('${item.name}', ${item.price})">
+                        ${btnText}
+                    </button>
                 </div>
             `;
-            menuList.innerHTML += itemHtml;
-        }
+        });
     });
 
-    // --- 5. 點擊「加入」按鈕的功能 ---
     function addToCart(name, price) {
-        myCart.push(name);
-        myTotal += price;
-        document.getElementById('total-price').innerText = myTotal;
+        cart.push(name);
+        totalPrice += price;
+        document.getElementById('total-price').innerText = totalPrice;
     }
 
-    // --- 6. 點擊「送出訂單」的功能 (微調後的版本) ---
     function submitOrder() {
-        if(myCart.length === 0) {
-            alert("購物車是空的喔！請先選擇餐點。");
-            return;
-        }
-        
-        const orderId = Date.now(); // 用當下時間當作編號
-        const now = new Date();
-        const timeString = now.toLocaleTimeString(); // 取得時間
-        const dateString = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`; // 取得日期
-
-        // 將訂單存入雲端
-        db.ref('orders/' + orderId).set({
+        if (cart.length === 0) return alert("請至少選擇一項餐點唷！");
+        const orderData = {
             table: tableNo,
-            items: myCart,
-            total: myTotal,
-            status: "待處理",
-            time: timeString,
-            fullDate: dateString,
-            timestamp: firebase.database.ServerValue.TIMESTAMP // 給報表用的精確時間
-        }).then(() => {
-            alert("訂單已成功送到老闆那邊囉！請稍候餐點。✨");
-            // 重置網頁狀態
-            myCart = [];
-            myTotal = 0;
+            items: cart,
+            total: totalPrice,
+            time: new Date().toLocaleTimeString(),
+            status: "待處理"
+        };
+        db.ref('orders').push(orderData).then(() => {
+            alert("訂單已送出！請稍候餐點 ✨");
+            cart = [];
+            totalPrice = 0;
             document.getElementById('total-price').innerText = "0";
-        }).catch((error) => {
-            alert("哎呀，送單出錯了：" + error.message);
         });
     }
 </script>
-
 </body>
 </html>
