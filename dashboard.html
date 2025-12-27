@@ -3,41 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder | 營運大數據中心</title>
+    <title>BlingOrder | 核心數據中心</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background: #fffafb; margin: 0; padding: 20px; color: #444; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: white; border-radius: 20px; padding: 25px; box-shadow: 0 10px 20px rgba(255, 175, 204, 0.2); border: 1px solid #ffafcc; }
-        h2 { color: #ff85a2; margin-top: 0; display: flex; align-items: center; }
-        .big-number { font-size: 48px; font-weight: bold; color: #d63384; margin: 10px 0; }
-        .hot-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #ffdee9; }
-        .rank-circle { background: #ffca3a; color: white; border-radius: 50%; width: 25px; height: 25px; display: inline-flex; justify-content: center; align-items: center; font-size: 14px; margin-right: 10px; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: #fffafb; margin: 0; padding: 20px; }
+        .header { text-align: center; color: #ff85a2; margin-bottom: 30px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 15px; border: 1px solid #ffafcc; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .stat-card h3 { margin: 0; color: #888; font-size: 14px; }
+        .stat-card .val { font-size: 28px; font-weight: bold; color: #d63384; margin-top: 10px; }
+        
+        .chart-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        .chart-card { background: white; padding: 20px; border-radius: 20px; border: 1px solid #ffafcc; min-height: 400px; }
+        h2 { color: #ff85a2; font-size: 1.2em; margin-bottom: 20px; border-left: 5px solid #ffafcc; padding-left: 10px; }
     </style>
 </head>
 <body>
 
-    <h1 style="text-align: center; color: #ff85a2;">💎 BlingOrder 營運數據儀表板</h1>
+    <div class="header"><h1>💎 BlingOrder 營運數據分析</h1></div>
 
-    <div class="grid">
-        <div class="card">
-            <h2>💰 今日累計營收</h2>
-            <div class="big-number">$<span id="stat-revenue">0</span></div>
-            <p>即時更新至：<span id="update-time">--:--:--</span></p>
+    <div class="stats-grid">
+        <div class="stat-card"><h3>📅 本日營收</h3><div class="val">$<span id="day-rev">0</span></div></div>
+        <div class="stat-card"><h3>📅 本周營收</h3><div class="val">$<span id="week-rev">0</span></div></div>
+        <div class="stat-card"><h3>📅 本月營收</h3><div class="val">$<span id="month-rev">0</span></div></div>
+        <div class="stat-card"><h3>📈 累計總營收</h3><div class="val">$<span id="total-rev">0</span></div></div>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-card">
+            <h2>🥧 熱銷品項佔比</h2>
+            <canvas id="pieChart"></canvas>
         </div>
-
-        <div class="card">
-            <h2>📝 已完成訂單</h2>
-            <div class="big-number"><span id="stat-orders">0</span> <small style="font-size: 18px;">張</small></div>
-            <p>客單價平均：$<span id="stat-avg">0</span></p>
-        </div>
-
-        <div class="card" style="grid-row: span 2;">
-            <h2>🔥 熱銷商品排行</h2>
-            <div id="hot-ranking">
-                <p>數據分析中...</p>
-            </div>
+        <div class="chart-card">
+            <h2>🏆 銷售排行榜</h2>
+            <div id="rank-list"></div>
         </div>
     </div>
 
@@ -52,46 +53,74 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    db.ref('orders').on('value', snap => {
-        let revenue = 0;
-        let count = 0;
-        let itemCounts = {};
+    let myPieChart = null;
 
+    db.ref('orders').on('value', snap => {
+        let dayRev = 0, weekRev = 0, monthRev = 0, totalRev = 0;
+        let itemCounts = {};
+        
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        
         snap.forEach(child => {
-            const order = child.val();
-            if (order.status === '已完成') {
-                revenue += parseInt(order.total);
-                count++;
+            const o = child.val();
+            if (o.status === '已完成') {
+                const amount = parseInt(o.total);
+                totalRev += amount;
                 
-                // 統計個別品項數量
-                order.items.forEach(name => {
+                // 日期判斷 (假設 o.date 存在，若不存在則用時間戳推算)
+                const orderDate = o.date ? new Date(o.date) : new Date();
+                const diffTime = Math.abs(now - orderDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (o.date === todayStr) dayRev += amount;
+                if (diffDays <= 7) weekRev += amount;
+                if (diffDays <= 30) monthRev += amount;
+
+                // 統計品項
+                o.items.forEach(name => {
                     itemCounts[name] = (itemCounts[name] || 0) + 1;
                 });
             }
         });
 
-        // 更新看板數字
-        document.getElementById('stat-revenue').innerText = revenue;
-        document.getElementById('stat-orders').innerText = count;
-        document.getElementById('stat-avg').innerText = count > 0 ? Math.round(revenue / count) : 0;
-        document.getElementById('update-time').innerText = new Date().toLocaleTimeString();
+        // 更新數字
+        document.getElementById('day-rev').innerText = dayRev;
+        document.getElementById('week-rev').innerText = weekRev;
+        document.getElementById('month-rev').innerText = monthRev;
+        document.getElementById('total-rev').innerText = totalRev;
 
-        // 處理排行數據
-        const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]);
-        const rankDiv = document.getElementById('hot-ranking');
-        rankDiv.innerHTML = "";
-        
-        sortedItems.forEach((item, index) => {
-            if(index < 10) { // 只顯示前10名
-                rankDiv.innerHTML += `
-                    <div class="hot-item">
-                        <span><span class="rank-circle">${index + 1}</span>${item[0]}</span>
-                        <b>${item[1]} 份</b>
-                    </div>
-                `;
+        updateCharts(itemCounts);
+    });
+
+    function updateCharts(itemCounts) {
+        const labels = Object.keys(itemCounts);
+        const data = Object.values(itemCounts);
+
+        // 更新圓餅圖
+        const ctx = document.getElementById('pieChart').getContext('2d');
+        if (myPieChart) myPieChart.destroy();
+        myPieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: ['#ffadcc', '#ffccbb', '#ffee99', '#99ffcc', '#99ccff', '#cc99ff']
+                }]
             }
         });
-    });
+
+        // 更新排行文字
+        const rankDiv = document.getElementById('rank-list');
+        const sorted = Object.entries(itemCounts).sort((a,b) => b[1] - a[1]);
+        rankDiv.innerHTML = sorted.map((it, i) => `
+            <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
+                <span>${i+1}. ${it[0]}</span>
+                <b>${it[1]} 份</b>
+            </div>
+        `).join('');
+    }
 </script>
 </body>
 </html>
