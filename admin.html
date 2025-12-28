@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>BlingOrder | 後台管理 (版本 2.1)</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: "PingFang TC", sans-serif; display: flex; margin: 0; background: #fff5f7; height: 100vh; overflow: hidden; }
+        
+        /* 左側管理區 */
+        .sidebar { width: 320px; padding: 25px; background: white; border-right: 2px solid #ffafcc; overflow-y: auto; box-shadow: 4px 0 15px rgba(0,0,0,0.05); }
+        h3 { color: #ff85a2; margin-top: 0; display: flex; align-items: center; gap: 8px; }
+        
+        .input-group { background: #fff0f3; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ffc2d1; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        input:focus { outline: none; border-color: #ff85a2; box-shadow: 0 0 5px rgba(255,133,162,0.3); }
+        
+        .btn-add { width: 100%; padding: 12px; background: #ff85a2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        .btn-add:hover { background: #ff6384; transform: translateY(-2px); }
+
+        /* 餐點列表項 */
+        .item-card { background: white; padding: 12px; margin-top: 12px; border-radius: 10px; border: 1px solid #ffe0e9; box-shadow: 0 2px 5px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 8px; }
+        .item-info { display: flex; justify-content: space-between; font-weight: bold; color: #444; }
+        .item-path { font-size: 11px; color: #999; word-break: break-all; }
+        .item-btns { display: flex; gap: 5px; }
+        .item-btns button { flex: 1; padding: 6px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .btn-sold { background: #ffca3a; color: white; }
+        .btn-del { background: #eee; color: #888; }
+
+        /* 右側訂單與數據 */
+        .main-content { flex: 1; padding: 25px; overflow-y: auto; display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
+        .order-section { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .data-section { background: #fff; padding: 20px; border-radius: 15px; border: 1px solid #ffe0e9; height: fit-content; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h3>✨ 菜單管理 (v2.1)</h3>
+    <div class="input-group">
+        <input type="text" id="name" placeholder="餐點名稱 (例: 昭和硬布丁)">
+        <input type="number" id="price" placeholder="餐點價格 (例: 160)">
+        <input type="text" id="imgUrl" placeholder="圖片路徑 (例: images/pudding.jpg)">
+        <button class="btn-add" onclick="addItem()">確認上架餐點</button>
+    </div>
+    <hr style="border: 0; border-top: 1px solid #ffe0e9; margin: 20px 0;">
+    <div id="admin-menu-list"></div>
+</div>
+
+<div class="main-content">
+    <div class="order-section">
+        <h3>🔔 待處理訂單</h3>
+        <div id="order-list"></div>
+    </div>
+    <div class="data-section">
+        <h3>📊 今日營運數據</h3>
+        <div id="stats-area">載入中...</div>
+    </div>
+</div>
+
+<script>
+    // Firebase 配置 (請確保與您目前的配置一致)
+    const firebaseConfig = {
+        apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
+        authDomain: "blingorder.firebaseapp.com",
+        projectId: "blingorder",
+        databaseURL: "https://blingorder-default-rtdb.firebaseio.com",
+        appId: "1:798993901664:web:9c2023b419ae099fe9fb05"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 1. 新增餐點功能
+    function addItem() {
+        const n = document.getElementById('name').value;
+        const p = document.getElementById('price').value;
+        const img = document.getElementById('imgUrl').value;
+        if(n && p) {
+            db.ref('menu/' + Date.now()).set({
+                name: n,
+                price: p,
+                image: img || "", // 存儲圖片路徑
+                isSoldOut: false
+            });
+            document.getElementById('name').value="";
+            document.getElementById('price').value="";
+            document.getElementById('imgUrl').value="";
+        } else {
+            alert("請填寫名稱與價格！");
+        }
+    }
+
+    // 2. 顯示管理清單
+    db.ref('menu').on('value', snap => {
+        const list = document.getElementById('admin-menu-list');
+        list.innerHTML = "";
+        snap.forEach(child => {
+            const item = child.val();
+            list.innerHTML += `
+                <div class="item-card">
+                    <div class="item-info">
+                        <span>${item.name}</span>
+                        <span>$${item.price}</span>
+                    </div>
+                    <div class="item-path">🖼️ ${item.image || '未設定圖片'}</div>
+                    <div class="item-btns">
+                        <button class="btn-sold" onclick="toggleSoldOut('${child.key}', ${item.isSoldOut})">${item.isSoldOut?'補貨':'售罄'}</button>
+                        <button class="btn-del" onclick="deleteItem('${child.key}')">刪除</button>
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    function toggleSoldOut(id, status) { db.ref('menu/'+id).update({ isSoldOut: !status }); }
+    function deleteItem(id) { if(confirm('確定刪除此餐點？')) db.ref('menu/'+id).remove(); }
+
+    // 3. 訂單監聽 (維持您原本的功能)
+    db.ref('orders').on('value', snap => {
+        const list = document.getElementById('order-list');
+        list.innerHTML = "";
+        let dailyTotal = 0;
+        snap.forEach(child => {
+            const o = child.val();
+            if(o.status === "待處理") {
+                list.innerHTML += `
+                    <div style="background:#fff5f7; padding:15px; margin-bottom:10px; border-radius:10px; border:1px solid #ffe0e9;">
+                        <b>桌號：${o.table}</b> <span style="font-size:12px; color:#999;">(${o.time})</span><br>
+                        <div style="margin:8px 0;">${o.items.join(', ')}</div>
+                        <b>總計：$${o.total}</b>
+                        <button onclick="finishOrder('${child.key}')" style="float:right; background:#ff85a2; color:white; border:none; padding:5px 15px; border-radius:5px; cursor:pointer;">完成</button>
+                    </div>
+                `;
+            }
+            if(o.status === "已完成") dailyTotal += parseInt(o.total);
+        });
+        document.getElementById('stats-area').innerHTML = `今日累計營收：<h2 style="color:#ff85a2; margin:5px 0;">$${dailyTotal}</h2>`;
+    });
+    function finishOrder(id) { db.ref('orders/'+id).update({ status: '已完成' }); }
+</script>
+</body>
+</html>
