@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>BlingOrder | 菜單編輯頁</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 40px; background: #fff; color: #333; max-width: 800px; margin: auto; }
+        .edit-section { background: #fef0f4; padding: 30px; border-radius: 20px; margin-bottom: 40px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { background: #ff85a2; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
+        .btn-del { background: #ddd; color: #666; padding: 5px 10px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2>⚙️ 菜單編輯系統</h2>
+    <div class="edit-section">
+        <h3>新增餐點</h3>
+        <input type="text" id="name" placeholder="餐點名稱">
+        <input type="number" id="price" placeholder="價格">
+        <input type="text" id="imgUrl" placeholder="圖片路徑 (例: images/pudding.jpg)">
+        <button onclick="addItem()">確認上架</button>
+    </div>
+
+    <h3>目前菜單列表</h3>
+    <div id="menu-list"></div>
+    <br>
+    <a href="admin.html">⬅️ 返回廚房接單頁</a>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
+        authDomain: "blingorder.firebaseapp.com",
+        projectId: "blingorder",
+        databaseURL: "https://blingorder-default-rtdb.firebaseio.com",
+        appId: "1:798993901664:web:9c2023b419ae099fe9fb05"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function addItem() {
+        const n = document.getElementById('name').value;
+        const p = document.getElementById('price').value;
+        const img = document.getElementById('imgUrl').value;
+        if(n && p) {
+            db.ref('menu/' + Date.now()).set({ name: n, price: p, image: img, isSoldOut: false });
+            alert("上架成功！");
+            location.reload();
+        }
+    }
+
+    db.ref('menu').on('value', snap => {
+        const list = document.getElementById('menu-list');
+        list.innerHTML = "";
+        snap.forEach(child => {
+            const item = child.val();
+            list.innerHTML += `
+                <div class="item-row">
+                    <span>${item.name} ($${item.price})</span>
+                    <button class="btn-del" onclick="deleteItem('${child.key}')">刪除</button>
+                </div>
+            `;
+        });
+    });
+
+    function deleteItem(id) { if(confirm('確定刪除？')) db.ref('menu/'+id).remove(); }
+</script>
+</body>
+</html>

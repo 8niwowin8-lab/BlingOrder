@@ -2,70 +2,63 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>BlingOrder | 後台管理 (廚房強化版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlingOrder | 廚房接單系統</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
-        body { font-family: "PingFang TC", sans-serif; display: flex; margin: 0; background: #fff5f7; height: 100vh; overflow: hidden; }
+        :root { --primary-pink: #ff85a2; --bg-gray: #f8f9fa; }
+        body { font-family: "PingFang TC", sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; }
         
-        /* 左側管理區 */
-        .sidebar { width: 320px; padding: 25px; background: white; border-right: 2px solid #ffafcc; overflow-y: auto; }
-        .input-group { background: #fff0f3; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ffc2d1; border-radius: 8px; box-sizing: border-box; }
-        .btn-add { width: 100%; padding: 12px; background: #ff85a2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        /* 頂部狀態列 */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .system-title { font-size: 28px; font-weight: 800; color: var(--primary-pink); }
+        .daily-income { text-align: right; }
+        .income-label { font-size: 16px; color: #888; }
+        .income-amount { font-size: 32px; font-weight: bold; color: #333; }
 
-        /* 右側訂單區 - 廚房人員專用大字體 */
-        .main-content { flex: 1; padding: 25px; overflow-y: auto; display: grid; grid-template-columns: 1fr 300px; gap: 25px; }
-        
-        .order-section h3 { font-size: 28px; color: #ff4d4d; margin-top: 0; display: flex; align-items: center; gap: 10px; }
-        
+        /* 訂單網格：在大平板上會自動排成兩欄，小螢幕一欄 */
+        .order-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 25px; }
+
         .order-card { 
-            background: white; padding: 25px; margin-bottom: 20px; border-radius: 15px; 
-            box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-left: 15px solid #ff85a2; 
+            background: white; border-radius: 25px; padding: 30px; 
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1); border-left: 20px solid var(--primary-pink);
+            display: flex; flex-direction: column; animation: fadeIn 0.3s ease-out;
         }
-        
-        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .order-table { font-size: 36px; font-weight: 900; color: #333; }
-        .order-time { font-size: 18px; color: #999; }
-        
-        .order-items { font-size: 32px; font-weight: bold; color: #444; margin: 15px 0; line-height: 1.4; }
-        .order-total { font-size: 24px; color: #ff85a2; font-weight: bold; }
-        
-        .btn-finish { 
-            background: #4CAF50; color: white; border: none; padding: 15px 40px; 
-            border-radius: 12px; font-size: 24px; font-weight: bold; cursor: pointer; float: right; 
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 數據統計區 */
-        .data-section { background: white; padding: 20px; border-radius: 15px; height: fit-content; border: 1px solid #ffe0e9; }
-        .stats-num { font-size: 36px; color: #ff85a2; font-weight: bold; margin: 10px 0; }
+        .order-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px; }
+        .table-num { font-size: 50px; font-weight: 900; color: #222; }
+        .order-time { font-size: 20px; color: #aaa; padding-top: 10px; }
+
+        .item-list { font-size: 38px; font-weight: bold; color: #444; line-height: 1.5; margin-bottom: 25px; flex-grow: 1; }
+        .item-list div { border-bottom: 1px solid #f9f9f9; padding: 5px 0; }
+
+        .order-footer { display: flex; justify-content: space-between; align-items: center; }
+        .total-price { font-size: 26px; color: var(--primary-pink); font-weight: bold; }
+        .btn-done { background: #4CAF50; color: white; border: none; padding: 20px 45px; border-radius: 15px; font-size: 28px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-done:active { transform: scale(0.95); background: #388E3C; }
+
+        /* 菜單編輯頁連結 */
+        .nav-link { position: fixed; bottom: 20px; right: 20px; color: #ccc; text-decoration: none; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <audio id="noticeSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
-<div class="sidebar">
-    <h3>✨ 菜單管理</h3>
-    <div class="input-group">
-        <input type="text" id="name" placeholder="餐點名稱">
-        <input type="number" id="price" placeholder="價格">
-        <input type="text" id="imgUrl" placeholder="圖片路徑 (例: images/pudding.jpg)">
-        <button class="btn-add" onclick="addItem()">確認上架</button>
+<div class="top-bar">
+    <div class="system-title">BlingOrder 廚房接單系統 ✨</div>
+    <div class="daily-income">
+        <div class="income-label">今日累計營收</div>
+        <div class="income-amount" id="stats-area">$0</div>
     </div>
-    <div id="admin-menu-list"></div>
 </div>
 
-<div class="main-content">
-    <div class="order-section">
-        <h3>🔔 待處理訂單 <span id="new-tag" style="display:none; background:red; color:white; font-size:14px; padding:2px 8px; border-radius:10px;">NEW!</span></h3>
-        <div id="order-list"></div>
+<div class="order-container" id="order-list">
     </div>
-    <div class="data-section">
-        <h3>📊 今日營收</h3>
-        <div id="stats-area" class="stats-num">$0</div>
-    </div>
-</div>
+
+<a href="menu-edit.html" class="nav-link">⚙️ 進入菜單管理系統</a>
 
 <script>
     const firebaseConfig = {
@@ -78,12 +71,8 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 播放音效與語音功能
     function playNotice() {
-        const sound = document.getElementById('noticeSound');
-        sound.play().catch(e => console.log("等待使用者點擊後啟用音效"));
-        
-        // 語音提醒
+        document.getElementById('noticeSound').play().catch(e => {});
         if ('speechSynthesis' in window) {
             const msg = new SpeechSynthesisUtterance("您有新訂單");
             msg.lang = 'zh-TW';
@@ -91,17 +80,11 @@
         }
     }
 
-    // 監聽新訂單 (當有新資料加入時觸發音效)
     let firstLoad = true;
     db.ref('orders').on('child_added', snap => {
-        if (!firstLoad) {
-            playNotice();
-            document.getElementById('new-tag').style.display = 'inline';
-            setTimeout(() => document.getElementById('new-tag').style.display = 'none', 5000);
-        }
+        if (!firstLoad) playNotice();
     });
 
-    // 渲染訂單列表
     db.ref('orders').on('value', snap => {
         const list = document.getElementById('order-list');
         list.innerHTML = "";
@@ -110,16 +93,17 @@
         snap.forEach(child => {
             const o = child.val();
             if(o.status === "待處理") {
+                const itemsHtml = o.items.map(item => `<div>• ${item}</div>`).join('');
                 list.innerHTML += `
                     <div class="order-card">
                         <div class="order-header">
-                            <span class="order-table">${o.table} 桌</span>
+                            <span class="table-num">${o.table} 桌</span>
                             <span class="order-time">${o.time}</span>
                         </div>
-                        <div class="order-items">${o.items.join('<br>')}</div>
-                        <div class="order-total">
-                            總計：$${o.total}
-                            <button class="btn-finish" onclick="finishOrder('${child.key}')">出餐完成</button>
+                        <div class="item-list">${itemsHtml}</div>
+                        <div class="order-footer">
+                            <span class="total-price">共 $${o.total}</span>
+                            <button class="btn-done" onclick="finishOrder('${child.key}')">完成出餐</button>
                         </div>
                     </div>
                 `;
@@ -127,30 +111,10 @@
             if(o.status === "已完成") dailyTotal += parseInt(o.total);
         });
         document.getElementById('stats-area').innerText = `$${dailyTotal}`;
-        firstLoad = false; // 初始加載完成
+        firstLoad = false;
     });
 
     function finishOrder(id) { db.ref('orders/'+id).update({ status: '已完成' }); }
-
-    // 菜單管理功能 (略)
-    function addItem() {
-        const n = document.getElementById('name').value;
-        const p = document.getElementById('price').value;
-        const img = document.getElementById('imgUrl').value;
-        if(n && p) {
-            db.ref('menu/' + Date.now()).set({ name: n, price: p, image: img, isSoldOut: false });
-            document.getElementById('name').value=""; document.getElementById('price').value=""; document.getElementById('imgUrl').value="";
-        }
-    }
-    
-    db.ref('menu').on('value', snap => {
-        const list = document.getElementById('admin-menu-list');
-        list.innerHTML = "";
-        snap.forEach(child => {
-            const item = child.val();
-            list.innerHTML += `<div style="padding:10px; border-bottom:1px solid #eee;">${item.name} ($${item.price})</div>`;
-        });
-    });
 </script>
 </body>
 </html>
