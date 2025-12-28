@@ -10,55 +10,53 @@
         :root { --primary-pink: #ff85a2; --bg-gray: #f8f9fa; }
         body { font-family: "PingFang TC", sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; }
         
-        /* 頂部狀態列 */
+        /* 啟動音效提醒 */
+        #audio-unlock-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,133,162,0.9); z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; font-size: 24px; font-weight: bold; text-align: center;
+        }
+        .unlock-btn {
+            background: white; color: var(--primary-pink); border: none;
+            padding: 20px 40px; border-radius: 50px; font-size: 28px;
+            margin-top: 20px; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
         .top-bar { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
         .system-title { font-size: 28px; font-weight: 800; color: var(--primary-pink); }
-        .daily-income { text-align: right; }
-        .income-label { font-size: 16px; color: #888; }
-        .income-amount { font-size: 32px; font-weight: bold; color: #333; }
-
-        /* 訂單網格：在大平板上會自動排成兩欄，小螢幕一欄 */
         .order-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 25px; }
-
         .order-card { 
             background: white; border-radius: 25px; padding: 30px; 
             box-shadow: 0 8px 30px rgba(0,0,0,0.1); border-left: 20px solid var(--primary-pink);
             display: flex; flex-direction: column; animation: fadeIn 0.3s ease-out;
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .order-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px; }
         .table-num { font-size: 50px; font-weight: 900; color: #222; }
-        .order-time { font-size: 20px; color: #aaa; padding-top: 10px; }
-
         .item-list { font-size: 38px; font-weight: bold; color: #444; line-height: 1.5; margin-bottom: 25px; flex-grow: 1; }
-        .item-list div { border-bottom: 1px solid #f9f9f9; padding: 5px 0; }
-
-        .order-footer { display: flex; justify-content: space-between; align-items: center; }
-        .total-price { font-size: 26px; color: var(--primary-pink); font-weight: bold; }
-        .btn-done { background: #4CAF50; color: white; border: none; padding: 20px 45px; border-radius: 15px; font-size: 28px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-done:active { transform: scale(0.95); background: #388E3C; }
-
-        /* 菜單編輯頁連結 */
+        .btn-done { background: #4CAF50; color: white; border: none; padding: 20px 45px; border-radius: 15px; font-size: 28px; font-weight: bold; cursor: pointer; }
         .nav-link { position: fixed; bottom: 20px; right: 20px; color: #ccc; text-decoration: none; font-size: 14px; }
     </style>
 </head>
 <body>
 
+<div id="audio-unlock-overlay">
+    <div>📢 歡迎回來！為了啟動新訂單通知音效</div>
+    <button class="unlock-btn" onclick="unlockAudio()">點擊這裡啟動系統</button>
+</div>
+
 <audio id="noticeSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
 <div class="top-bar">
-    <div class="system-title">BlingOrder 廚房接單系統 ✨</div>
-    <div class="daily-income">
-        <div class="income-label">今日累計營收</div>
-        <div class="income-amount" id="stats-area">$0</div>
+    <div class="system-title">BlingOrder 廚房接單 ✨</div>
+    <div style="text-align: right;">
+        <div style="font-size: 16px; color: #888;">今日營收</div>
+        <div style="font-size: 32px; font-weight: bold;" id="stats-area">$0</div>
     </div>
 </div>
 
-<div class="order-container" id="order-list">
-    </div>
+<div class="order-container" id="order-list"></div>
 
-<a href="menu-edit.html" class="nav-link">⚙️ 進入菜單管理系統</a>
+<a href="menu-edit.html" class="nav-link">⚙️ 進入菜單管理</a>
 
 <script>
     const firebaseConfig = {
@@ -71,8 +69,29 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // 關鍵修復：解鎖音效與語音
+    function unlockAudio() {
+        // 播放一次短促的靜音或測試音
+        const sound = document.getElementById('noticeSound');
+        sound.play().then(() => {
+            sound.pause();
+            sound.currentTime = 0;
+            // 語音測試
+            if ('speechSynthesis' in window) {
+                const msg = new SpeechSynthesisUtterance("系統已啟動");
+                msg.lang = 'zh-TW';
+                window.speechSynthesis.speak(msg);
+            }
+            // 隱藏覆蓋層
+            document.getElementById('audio-unlock-overlay').style.display = 'none';
+        }).catch(e => alert("請再試一次！"));
+    }
+
     function playNotice() {
-        document.getElementById('noticeSound').play().catch(e => {});
+        const sound = document.getElementById('noticeSound');
+        sound.currentTime = 0;
+        sound.play().catch(e => console.log("音效播放受阻"));
+        
         if ('speechSynthesis' in window) {
             const msg = new SpeechSynthesisUtterance("您有新訂單");
             msg.lang = 'zh-TW';
@@ -81,10 +100,14 @@
     }
 
     let firstLoad = true;
+    // 監聽新訂單（子節點加入）
     db.ref('orders').on('child_added', snap => {
-        if (!firstLoad) playNotice();
+        if (!firstLoad) {
+            playNotice();
+        }
     });
 
+    // 監聽所有訂單（渲染畫面）
     db.ref('orders').on('value', snap => {
         const list = document.getElementById('order-list');
         list.innerHTML = "";
@@ -96,13 +119,13 @@
                 const itemsHtml = o.items.map(item => `<div>• ${item}</div>`).join('');
                 list.innerHTML += `
                     <div class="order-card">
-                        <div class="order-header">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:2px solid #f0f0f0; padding-bottom:15px;">
                             <span class="table-num">${o.table} 桌</span>
-                            <span class="order-time">${o.time}</span>
+                            <span style="font-size:20px; color:#aaa; margin-top:15px;">${o.time}</span>
                         </div>
                         <div class="item-list">${itemsHtml}</div>
-                        <div class="order-footer">
-                            <span class="total-price">共 $${o.total}</span>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:26px; color:var(--primary-pink); font-weight:bold;">$${o.total}</span>
                             <button class="btn-done" onclick="finishOrder('${child.key}')">完成出餐</button>
                         </div>
                     </div>
