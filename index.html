@@ -7,114 +7,56 @@
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
-        :root { 
-            --primary-color: #ff85a2; 
-            --bg-color: #fcfcfc; 
-            --text-dark: #333;
-        }
-
-        body { 
-            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; 
-            background: var(--bg-color); 
-            margin: 0; 
-            padding-bottom: 120px; 
-            color: var(--text-dark); 
-        }
+        :root { --primary-pink: #ff85a2; --bg-color: #fcfcfc; }
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg-color); margin: 0; padding-bottom: 120px; }
         
-        /* 頂部大圖 Banner */
+        /* 頂部 Banner */
         .banner-container { width: 100%; overflow: hidden; background: #fff; }
         .banner-container img { width: 100%; height: auto; display: block; }
 
-        .brand-header { 
-            position: sticky; top: 0; background: white; z-index: 100; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; padding: 15px 0; 
-        }
-        .brand-name { font-size: 22px; font-weight: bold; color: var(--primary-color); }
-        
-        /* 餐點網格與加入按鈕 */
+        .brand-header { position: sticky; top: 0; background: white; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; padding: 15px 0; }
+        .brand-name { font-size: 22px; font-weight: bold; color: var(--primary-pink); }
+        .table-info-tag { font-size: 14px; color: #888; margin-top: 5px; }
+
+        /* 餐點網格 */
         .menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 12px; }
-        .food-card { 
-            background: white; border-radius: 12px; overflow: hidden; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; 
-        }
+        .food-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
         .food-img-box { width: 100%; aspect-ratio: 1/1; background: #f0f0f0; }
         .food-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .food-info { padding: 10px; display: flex; flex-direction: column; gap: 5px; flex-grow: 1; }
-        .food-name { font-weight: bold; font-size: 15px; min-height: 1.2em; }
-        .food-price { color: var(--primary-color); font-weight: bold; margin-bottom: 5px; }
-        .btn-add-item { 
-            background: var(--primary-color); color: white; border: none; 
-            padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; 
-            margin-top: auto; font-size: 14px;
-        }
+        .food-info { padding: 10px; display: flex; flex-grow: 1; flex-direction: column; justify-content: space-between; }
+        .food-name { font-weight: bold; font-size: 15px; }
+        .food-price { color: var(--primary-pink); font-weight: bold; margin: 5px 0; }
+        .btn-add { background: var(--primary-pink); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
-        /* 底部購物車與刪除功能 */
-        .cart-bar { 
-            position: fixed; bottom: 20px; left: 5%; width: 90%; 
-            background: rgba(51, 51, 51, 0.95); color: white; border-radius: 15px; 
-            padding: 15px; box-sizing: border-box; z-index: 1000; 
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-        }
-        .cart-summary { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .cart-items-preview { 
-            display: flex; flex-wrap: wrap; gap: 8px; max-height: 50px; 
-            overflow-y: auto; border-top: 1px solid #555; padding-top: 10px; 
-        }
-        .cart-tag { 
-            background: #444; padding: 4px 10px; border-radius: 12px; 
-            font-size: 12px; display: flex; align-items: center; gap: 6px; 
-        }
-        .btn-del-small { color: #ff85a2; font-weight: bold; cursor: pointer; font-size: 16px; }
+        /* 購物車條 */
+        .cart-bar { position: fixed; bottom: 20px; left: 5%; width: 90%; background: #333; color: white; border-radius: 15px; padding: 15px; box-sizing: border-box; z-index: 1000; }
+        .cart-summary { display: flex; justify-content: space-between; align-items: center; }
+        .cart-items-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; border-top: 1px solid #555; padding-top: 10px; }
+        .cart-tag { background: #444; padding: 4px 10px; border-radius: 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
 
-        /* 彈窗背景 */
-        .modal { 
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center; 
-            padding: 20px; box-sizing: border-box; backdrop-filter: blur(3px);
-        }
-        .modal-content { 
-            background: white; width: 100%; max-width: 380px; border-radius: 20px; 
-            padding: 25px; box-sizing: border-box; 
-        }
-        .modal-header { font-size: 20px; font-weight: bold; margin-bottom: 20px; text-align: center; color: var(--primary-color); }
-        .confirm-list { margin: 15px 0; max-height: 180px; overflow-y: auto; }
-        .confirm-item { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 16px; border-bottom: 1px dashed #eee; padding-bottom: 5px; }
-
-        /* 彈窗按鈕區 */
-        .btn-confirm { 
-            width: 100%; padding: 15px; background: var(--primary-color); color: white; 
-            border: none; border-radius: 12px; font-weight: bold; font-size: 18px; 
-            margin-top: 20px; cursor: pointer;
-        }
-        .btn-back-to-menu { 
-            width: 100%; padding: 15px; background: #f0f0f0; color: #666; 
-            border: none; border-radius: 12px; font-weight: bold; font-size: 16px; 
-            margin-top: 10px; cursor: pointer;
-        }
-
-        /* 結帳指示畫面 */
-        .checkout-box { text-align: center; border: 3px dashed var(--primary-color); }
-        .big-price { font-size: 54px; color: var(--primary-color); font-weight: 800; margin: 15px 0; }
-        .cash-only { color: #ff4d4d; font-weight: bold; font-size: 18px; margin: 10px 0; }
+        /* 彈窗 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; backdrop-filter: blur(3px); }
+        .modal-content { background: white; width: 100%; max-width: 380px; border-radius: 20px; padding: 25px; box-sizing: border-box; }
+        .btn-confirm { width: 100%; padding: 15px; background: var(--primary-pink); color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 18px; margin-top: 20px; }
+        .btn-back { width: 100%; padding: 15px; background: #eee; color: #666; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; margin-top: 10px; }
+        .checkout-box { text-align: center; border: 3px dashed var(--primary-pink); }
     </style>
 </head>
 <body>
 
     <div id="main-ui">
-        <div class="banner-container">
-            <img src="images/banner.jpg" onerror="this.src='https://placehold.co/1200x600?text=BlingOrder+Banner'">
-        </div>
-
+        <div class="banner-container"><img src="images/banner.jpg" onerror="this.src='https://placehold.co/1200x600?text=BlingOrder'"></div>
         <div class="brand-header">
             <div class="brand-name">BlingOrder ✨</div>
+            <div class="table-info-tag">目前桌號：<span id="display-table-num" style="color:#333; font-weight:bold;">載入中...</span></div>
         </div>
 
         <div class="menu-grid" id="menu-list"></div>
 
         <div class="cart-bar" id="cart-bar" style="display: none;">
             <div class="cart-summary">
-                <div>🛒 <span id="cart-count">0</span> 項 | <span style="color:var(--primary-color); font-weight:bold;">$<span id="cart-total">0</span></span></div>
-                <button onclick="showConfirmModal()" style="background:var(--primary-color); color:white; border:none; padding:8px 20px; border-radius:20px; font-weight:bold; cursor:pointer;">送出訂單</button>
+                <div>🛒 <span id="cart-count">0</span> 項 | <span style="color:var(--primary-pink); font-weight:bold;">$<span id="cart-total">0</span></span></div>
+                <button onclick="showConfirmModal()" style="background:var(--primary-pink); color:white; border:none; padding:8px 20px; border-radius:20px; font-weight:bold;">送出訂單</button>
             </div>
             <div class="cart-items-preview" id="cart-items-preview"></div>
         </div>
@@ -122,27 +64,25 @@
 
     <div class="modal" id="confirmModal">
         <div class="modal-content">
-            <div class="modal-header">確認您的餐點</div>
-            <div class="confirm-list" id="confirm-list"></div>
-            <div style="text-align: right; font-weight: bold; font-size: 22px; color: var(--primary-color);">總計：$<span id="confirm-total">0</span></div>
-            
+            <h3 style="text-align:center; color:var(--primary-pink);">確認餐點</h3>
+            <div id="confirm-list" style="margin: 15px 0;"></div>
+            <div style="text-align: right; font-weight: bold; font-size: 22px; border-top:1px solid #eee; padding-top:10px;">總計：$<span id="confirm-total">0</span></div>
             <button class="btn-confirm" onclick="finalSubmit()">確定叫餐 ✨</button>
-            <button class="btn-back-to-menu" onclick="closeModal()">回菜單修改</button>
+            <button class="btn-back" onclick="closeModal()">回菜單修改</button>
         </div>
     </div>
 
     <div class="modal" id="checkout-screen">
         <div class="modal-content checkout-box">
-            <div style="font-size: 22px; font-weight: bold;">請至櫃檯結帳</div>
-            <div style="margin-top: 15px; color: #666; font-size: 18px;">桌號：<span id="final-table" style="color:#333; font-weight:bold;">--</span></div>
-            <div class="big-price">$<span id="final-price">0</span></div>
-            <div class="cash-only">⚠️ 本店只收現金，感謝您 ⚠️</div>
-            <button onclick="location.reload()" style="background:#333; color:white; border:none; padding:12px 30px; border-radius:12px; margin-top:20px; font-weight:bold; cursor:pointer;">完成結帳並返回</button>
+            <h2 style="margin:0;">請至櫃檯結帳</h2>
+            <p>桌號：<span id="final-table" style="font-weight:bold; font-size:20px;">--</span></p>
+            <div style="font-size: 54px; color: var(--primary-pink); font-weight: 800; margin: 15px 0;">$<span id="final-price">0</span></div>
+            <p style="color:red; font-weight:bold;">⚠️ 本店只收現金，感謝您</p>
+            <button onclick="location.reload()" style="background:#333; color:white; border:none; padding:12px 30px; border-radius:12px; margin-top:20px; font-weight:bold;">完成結帳並返回</button>
         </div>
     </div>
 
 <script>
-    // Firebase 配置
     const firebaseConfig = {
         apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
         authDomain: "blingorder.firebaseapp.com",
@@ -153,97 +93,71 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let cart = [];
+    // --- 自動抓取桌號邏輯 ---
     const urlParams = new URLSearchParams(window.location.search);
-    const tableNum = urlParams.get('table') || "M1";
+    const tableNum = urlParams.get('table') || "M1"; // 如果網址沒 table 參數，就顯示 M1
+    document.getElementById('display-table-num').innerText = tableNum;
 
-    // 載入菜單
+    let cart = [];
+
     db.ref('menu').on('value', snap => {
         const list = document.getElementById('menu-list');
         list.innerHTML = "";
         snap.forEach(child => {
             const item = child.val();
-            const id = child.key;
             if(item.isSoldOut) return; 
-
-            const imgSrc = item.image ? item.image : `images/${id}.jpg`;
-
+            const imgSrc = item.image ? item.image : `images/${child.key}.jpg`;
             list.innerHTML += `
                 <div class="food-card">
                     <div class="food-img-box"><img src="${imgSrc}" onerror="this.src='https://placehold.co/500x500?text=Food'"></div>
                     <div class="food-info">
-                        <span class="food-name">${item.name}</span>
-                        <span class="food-price">$${item.price}</span>
-                        <button class="btn-add-item" onclick="addToCart('${item.name}', ${item.price})">加入</button>
+                        <div class="food-name">${item.name}</div>
+                        <div class="food-price">$${item.price}</div>
+                        <button class="btn-add" onclick="addToCart('${item.name}', ${item.price})">加入</button>
                     </div>
-                </div>
-            `;
+                </div>`;
         });
     });
 
-    // 加入購物車
     function addToCart(name, price) {
         cart.push({name, price});
         renderCart();
     }
 
-    // 刪除項目
     function removeFromCart(index) {
         cart.splice(index, 1);
         renderCart();
     }
 
-    // 渲染底部購物車狀態
     function renderCart() {
         const bar = document.getElementById('cart-bar');
         const preview = document.getElementById('cart-items-preview');
-        const count = document.getElementById('cart-count');
-        const totalDisp = document.getElementById('cart-total');
-
-        if(cart.length === 0) { 
-            bar.style.display = 'none'; 
-            return; 
-        }
+        if(cart.length === 0) { bar.style.display = 'none'; return; }
         bar.style.display = 'block';
-
         let total = 0;
         preview.innerHTML = "";
         cart.forEach((item, index) => {
             total += parseInt(item.price);
-            preview.innerHTML += `
-                <div class="cart-tag">
-                    ${item.name} 
-                    <span class="btn-del-small" onclick="removeFromCart(${index})">×</span>
-                </div>`;
+            preview.innerHTML += `<div class="cart-tag">${item.name} <span style="color:#ff85a2; cursor:pointer;" onclick="removeFromCart(${index})">×</span></div>`;
         });
-        
-        count.innerText = cart.length;
-        totalDisp.innerText = total;
+        document.getElementById('cart-count').innerText = cart.length;
+        document.getElementById('cart-total').innerText = total;
     }
 
-    // 顯示二次確認視窗
     function showConfirmModal() {
         const list = document.getElementById('confirm-list');
         let total = 0;
         list.innerHTML = "";
         cart.forEach(item => {
             total += parseInt(item.price);
-            list.innerHTML += `
-                <div class="confirm-item">
-                    <span>${item.name}</span>
-                    <span>$${item.price}</span>
-                </div>`;
+            list.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span>${item.name}</span><span>$${item.price}</span></div>`;
         });
         document.getElementById('confirm-total').innerText = total;
         document.getElementById('confirmModal').style.display = 'flex';
     }
 
-    // 關閉視窗
-    function closeModal() { 
-        document.getElementById('confirmModal').style.display = 'none'; 
-    }
+    function closeModal() { document.getElementById('confirmModal').style.display = 'none'; }
 
-    // 最終送出訂單
     function finalSubmit() {
         let total = cart.reduce((sum, item) => sum + parseInt(item.price), 0);
         const orderData = {
@@ -251,14 +165,11 @@
             items: cart.map(i => i.name),
             total: total,
             status: "待處理",
-            time: new Date().toLocaleTimeString(),
-            date: new Date().toISOString().split('T')[0]
+            time: new Date().toLocaleTimeString()
         };
-
         db.ref('orders/' + Date.now()).set(orderData).then(() => {
-            // 隱藏確認窗，顯示結帳畫面
             document.getElementById('confirmModal').style.display = 'none';
-            document.getElementById('main-ui').style.filter = 'blur(8px)';
+            document.getElementById('main-ui').style.filter = 'blur(10px)';
             document.getElementById('final-table').innerText = tableNum;
             document.getElementById('final-price').innerText = total;
             document.getElementById('checkout-screen').style.display = 'flex';
