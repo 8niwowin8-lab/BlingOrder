@@ -26,19 +26,22 @@
         .option-item input { width: 18px; height: 18px; cursor: pointer; }
 
         .btn-save { width: 100%; padding: 18px; background: var(--primary-pink); color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 20px; cursor: pointer; margin-top: 20px; }
-        .btn-save:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-cancel { background: none; border: none; color: #999; width: 100%; padding: 10px; cursor: pointer; text-decoration: underline; }
 
-        table { width: 100%; background: white; border-collapse: collapse; border-radius: 15px; overflow: hidden; }
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 15px; overflow: hidden; margin-top: 20px; }
         th, td { padding: 15px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #fff0f3; }
         .list-img { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; }
-        .staff-note-tag { color: #ff4d4d; font-size: 13px; font-weight: bold; display: block; margin-top: 5px; }
+        .btn-action { padding: 6px 12px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-edit { background: #4a90e2; color: white; margin-right: 5px; }
+        .btn-del { background: #eee; color: #888; }
     </style>
 </head>
 <body>
 
 <div class="edit-panel">
     <h3 id="form-title">✨ 菜單進階管理</h3>
-    <input type="hidden" id="edit-id">
+    <input type="hidden" id="edit-id" value="">
     
     <div class="input-row">
         <label>餐點分類 (例如：咖啡類、甜點類)</label>
@@ -56,22 +59,22 @@
     </div>
 
     <div class="input-row">
-        <label>餐點照片 (點擊下方區域即可上傳)</label>
+        <label>餐點照片 (點擊下方區域上傳)</label>
         <div class="upload-area" onclick="document.getElementById('file-input').click()">
             <span id="upload-status" class="upload-hint">📸 點擊選擇檔案或拍照</span>
             <img id="preview-img">
-            <input type="file" id="file-input" accept="image/*" style="display:none" onchange="uploadImage(this)">
+            <input type="file" id="file-input" accept="image/*" style="display:none" onchange="uploadToImgur(this)">
             <input type="hidden" id="image-url">
         </div>
     </div>
 
     <div class="input-row">
-        <label>工作人員專用備註 (警語訊息)</label>
+        <label>工作人員警語備註</label>
         <input type="text" id="staff-note" placeholder="例：本飲品含提神飲料，不建議孕婦及兒童">
     </div>
 
     <div class="input-row">
-        <label>設定附加選項 (讓客人在前端勾選)</label>
+        <label>附加選項 (多選)</label>
         <div class="option-group" id="addon-options">
             <label class="option-item"><input type="checkbox" value="冰"> 冰</label>
             <label class="option-item"><input type="checkbox" value="去冰"> 去冰</label>
@@ -81,14 +84,15 @@
         </div>
     </div>
 
-    <button class="btn-save" id="submit-btn" onclick="saveItem()">儲存並發布 ✨</button>
+    <button class="btn-save" id="submit-btn" onclick="saveToFirebase()">儲存並發布 ✨</button>
+    <button class="btn-cancel" onclick="resetForm()">取消編輯 / 清空欄位</button>
 </div>
 
 <table>
     <thead>
-        <tr><th>分類</th><th>圖片</th><th>名稱/價格</th><th>警語與選項</th><th>操作</th></tr>
+        <tr><th>分類</th><th>圖片</th><th>名稱/價格</th><th>警語/選項</th><th>操作</th></tr>
     </thead>
-    <tbody id="menu-table-body"></tbody>
+    <tbody id="menu-tbody"></tbody>
 </table>
 
 <script>
@@ -102,24 +106,23 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 圖片上傳至 Imgur
-    async function uploadImage(input) {
+    // 1. 修復圖片上傳
+    async function uploadToImgur(input) {
         const file = input.files[0];
         if (!file) return;
 
         const status = document.getElementById('upload-status');
-        const btn = document.getElementById('submit-btn');
-        status.innerText = "⏳ 圖片上傳中，請稍候...";
-        btn.disabled = true;
+        const submitBtn = document.getElementById('submit-btn');
+        status.innerText = "⏳ 上傳中...";
+        submitBtn.disabled = true;
 
         const formData = new FormData();
         formData.append('image', file);
 
         try {
-            // 使用 Imgur API (匿名上傳)
             const res = await fetch('https://api.imgur.com/3/image', {
                 method: 'POST',
-                headers: { Authorization: 'Client-ID 73499b951474d2b' }, 
+                headers: { Authorization: 'Client-ID 73499b951474d2b' }, // 使用通用 ID
                 body: formData
             });
             const result = await res.json();
@@ -131,16 +134,22 @@
                 preview.style.display = 'block';
                 status.style.display = 'none';
                 alert("圖片上傳成功！");
+            } else {
+                throw new Error(result.data.error);
             }
         } catch (e) {
-            alert("上傳失敗，請檢查網路連線。");
+            alert("上傳失敗，請稍後再試或檢查網路。");
+            status.innerText = "📸 點擊重試";
         } finally {
-            btn.disabled = false;
+            submitBtn.disabled = false;
         }
     }
 
-    function saveItem() {
-        const id = document.getElementById('edit-id').value || Date.now();
+    // 2. 修復儲存與修改邏輯
+    function saveToFirebase() {
+        const editId = document.getElementById('edit-id').value;
+        const id = editId || Date.now(); // 如果有 ID 則是修改，否則新增
+        
         const addons = [];
         document.querySelectorAll('#addon-options input:checked').forEach(cb => addons.push(cb.value));
 
@@ -148,7 +157,7 @@
             category: document.getElementById('category').value || "未分類",
             name: document.getElementById('name').value,
             price: document.getElementById('price').value,
-            image: document.getElementById('image-url').value,
+            image: document.getElementById('image-url').value || "",
             staffNote: document.getElementById('staff-note').value || "",
             addons: addons,
             isSoldOut: false
@@ -158,52 +167,76 @@
 
         db.ref('menu/' + id).set(data).then(() => {
             alert("儲存成功！");
-            location.reload();
+            resetForm();
+        }).catch(err => alert("儲存失敗：" + err.message));
+    }
+
+    // 3. 修復「修改」按鈕：將資料帶回上方表單
+    function startEdit(id) {
+        db.ref('menu/' + id).once('value', snap => {
+            const item = snap.val();
+            document.getElementById('edit-id').value = id;
+            document.getElementById('form-title').innerText = "✍️ 正在修改：" + item.name;
+            document.getElementById('category').value = item.category;
+            document.getElementById('name').value = item.name;
+            document.getElementById('price').value = item.price;
+            document.getElementById('staff-note').value = item.staffNote || "";
+            document.getElementById('image-url').value = item.image || "";
+            
+            // 處理圖片預覽
+            const preview = document.getElementById('preview-img');
+            const status = document.getElementById('upload-status');
+            if(item.image) {
+                preview.src = item.image;
+                preview.style.display = 'block';
+                status.style.display = 'none';
+            } else {
+                preview.style.display = 'none';
+                status.style.display = 'block';
+            }
+
+            // 處理勾選框
+            const addons = item.addons || [];
+            document.querySelectorAll('#addon-options input').forEach(cb => {
+                cb.checked = addons.includes(cb.value);
+            });
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     }
 
+    function resetForm() {
+        document.getElementById('edit-id').value = "";
+        document.getElementById('form-title').innerText = "✨ 菜單進階管理";
+        document.querySelectorAll('input[type="text"], input[type="number"], #image-url').forEach(i => i.value = "");
+        document.querySelectorAll('#addon-options input').forEach(cb => cb.checked = false);
+        document.getElementById('preview-img').style.display = 'none';
+        document.getElementById('upload-status').style.display = 'block';
+        document.getElementById('upload-status').innerText = "📸 點擊選擇檔案或拍照";
+    }
+
+    // 實時讀取清單
     db.ref('menu').on('value', snap => {
-        const body = document.getElementById('menu-table-body');
-        body.innerHTML = "";
+        const tbody = document.getElementById('menu-tbody');
+        tbody.innerHTML = "";
         snap.forEach(child => {
             const i = child.val();
-            body.innerHTML += `
+            tbody.innerHTML += `
                 <tr>
                     <td>${i.category}</td>
                     <td><img src="${i.image}" class="list-img" onerror="this.src='https://placehold.co/100?text=None'"></td>
                     <td><b>${i.name}</b><br>$${i.price}</td>
                     <td>
-                        <span class="staff-note-tag">${i.staffNote || ''}</span>
-                        <div style="font-size:12px; color:#888;">選項：${(i.addons || []).join('/')}</div>
+                        <span style="color:red; font-size:12px;">${i.staffNote || ''}</span>
+                        <div style="font-size:11px; color:#888;">${(i.addons || []).join('/')}</div>
                     </td>
                     <td>
-                        <button onclick="editItem('${child.key}', ${JSON.stringify(i)})">修改</button>
-                        <button onclick="db.ref('menu/${child.key}').remove()">刪除</button>
+                        <button class="btn-action btn-edit" onclick="startEdit('${child.key}')">修改</button>
+                        <button class="btn-action btn-del" onclick="if(confirm('確定刪除？')) db.ref('menu/${child.key}').remove()">刪除</button>
                     </td>
                 </tr>`;
         });
     });
-
-    function editItem(id, item) {
-        document.getElementById('edit-id').value = id;
-        document.getElementById('category').value = item.category;
-        document.getElementById('name').value = item.name;
-        document.getElementById('price').value = item.price;
-        document.getElementById('image-url').value = item.image;
-        document.getElementById('staff-note').value = item.staffNote || "";
-        
-        const preview = document.getElementById('preview-img');
-        if(item.image) {
-            preview.src = item.image;
-            preview.style.display = 'block';
-            document.getElementById('upload-status').style.display = 'none';
-        }
-
-        document.querySelectorAll('#addon-options input').forEach(cb => {
-            cb.checked = (item.addons || []).includes(cb.value);
-        });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
 </script>
 </body>
 </html>
