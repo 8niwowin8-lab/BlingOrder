@@ -13,7 +13,7 @@
         /* 標題與桌號 */
         .brand-header { position: sticky; top: 0; background: white; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; padding: 15px 0; }
         .brand-name { font-size: 24px; font-weight: bold; color: var(--primary-pink); letter-spacing: 1px; }
-        .table-info { font-size: 14px; color: #888; margin-top: 4px; font-weight: bold; }
+        .table-info { font-size: 16px; color: #333; margin-top: 4px; font-weight: bold; background: #fff0f3; display: inline-block; padding: 4px 15px; border-radius: 15px; }
 
         /* 分類導覽 */
         .category-nav { display: flex; gap: 10px; overflow-x: auto; padding: 10px; background: white; white-space: nowrap; border-bottom: 1px solid #eee; scrollbar-width: none; }
@@ -76,14 +76,14 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 獲取桌號參數
+    // 獲取桌號參數 (關鍵邏輯)
     const urlParams = new URLSearchParams(window.location.search);
     const tableNum = urlParams.get('table') || "M1";
     document.getElementById('table-label').innerText = `📍 您現在是第 ${tableNum} 桌`;
 
     let menuData = [];
     let myCart = [];
-    let itemSelections = {}; // 暫存每個品項選中的附加選項
+    let itemSelections = {}; 
 
     // 監聽資料庫
     db.ref('menu').on('value', snap => {
@@ -96,7 +96,6 @@
             if(val.category && val.category !== "undefined") cats.add(val.category);
         });
 
-        // 渲染分類導覽
         const nav = document.getElementById('cat-nav');
         nav.innerHTML = `<button class="cat-btn active" onclick="filterCat('全部')">全部項目</button>`;
         cats.forEach(c => {
@@ -110,7 +109,6 @@
         const container = document.getElementById('menu-container');
         container.innerHTML = "";
         items.forEach(i => {
-            // 自動產生附加選項按鈕
             let addonsHtml = "";
             if (i.addons && i.addons.length > 0) {
                 addonsHtml = `<div class="addon-group">`;
@@ -134,7 +132,6 @@
         });
     }
 
-    // 選項單選切換邏輯
     function setOpt(id, val) {
         if (!itemSelections[id]) itemSelections[id] = [];
         const buttons = document.querySelectorAll(`[id^="opt-${id}-"]`);
@@ -154,7 +151,6 @@
         const finalTitle = sel.length > 0 ? `${name} (${sel[0]})` : name;
         myCart.push({ name: finalTitle, price: price });
         
-        // 重置該品項按鈕狀態
         itemSelections[id] = [];
         const buttons = document.querySelectorAll(`[id^="opt-${id}-"]`);
         buttons.forEach(b => b.classList.remove('selected'));
@@ -164,26 +160,4 @@
 
     function updateCart() {
         const ui = document.getElementById('cart-ui');
-        ui.style.display = myCart.length > 0 ? 'flex' : 'none';
-        document.getElementById('cart-qty').innerText = myCart.length;
-        document.getElementById('cart-sum').innerText = myCart.reduce((acc, obj) => acc + parseInt(obj.price), 0);
-    }
-
-    function sendOrder() {
-        if (myCart.length === 0) return;
-        const orderInfo = {
-            table: tableNum,
-            items: myCart.map(c => c.name),
-            total: document.getElementById('cart-sum').innerText,
-            status: "待處理",
-            time: new Date().toLocaleTimeString()
-        };
-        db.ref('orders/' + Date.now()).set(orderInfo).then(() => {
-            alert(`第 ${tableNum} 桌訂單已成功送出！`);
-            myCart = [];
-            updateCart();
-        });
-    }
-</script>
-</body>
-</html>
+        ui.style.display = myCart.length >
