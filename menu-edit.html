@@ -2,71 +2,37 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder | 菜單進階管理</title>
+    <title>BlingOrder | 菜單高級管理</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
-        :root { --primary-pink: #ff85a2; --bg-color: #fff5f7; }
-        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; padding: 20px; background: var(--bg-color); color: #333; }
-        h2 { display: flex; align-items: center; gap: 10px; }
-        
-        .edit-panel { background: white; padding: 25px; border-radius: 15px; margin-bottom: 30px; border: 2px solid var(--primary-pink); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        label { display: block; margin-top: 15px; font-weight: bold; font-size: 14px; color: #666; }
-        input { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        
-        .btn-save { width: 100%; padding: 15px; background: var(--primary-pink); color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 18px; cursor: pointer; transition: 0.3s; margin-top: 20px; }
-        .btn-save:hover { background: #ff6384; }
-        .btn-clear { background: none; border: none; color: #999; width: 100%; padding: 10px; cursor: pointer; text-decoration: underline; display: block; margin: 0 auto; }
-
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #fff0f3; color: #555; }
-        .img-preview { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; background: #eee; }
-        
-        .btn-edit { background: #4a90e2; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; }
-        .btn-del { background: #eee; color: #888; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; }
+        body { font-family: sans-serif; padding: 20px; background: #fff5f7; }
+        .edit-panel { background: white; padding: 25px; border-radius: 15px; border: 2px solid #ff85a2; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button.btn-save { width: 100%; padding: 15px; background: #ff85a2; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 18px; }
+        table { width: 100%; background: white; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #eee; padding: 12px; text-align: left; }
+        .img-preview { width: 50px; height: 50px; object-fit: cover; }
     </style>
 </head>
 <body>
-
-    <h2>⚙️ 菜單進階管理</h2>
-
     <div class="edit-panel">
-        <h3 id="panel-title">新增餐點</h3>
+        <h3 id="form-title">新增/編輯餐點</h3>
         <input type="hidden" id="edit-id">
-        
-        <label>分類 (例如：咖啡類、甜點類)</label>
-        <input type="text" id="category" placeholder="請輸入分類名稱">
-        
-        <label>餐點名稱</label>
-        <input type="text" id="name" placeholder="請輸入名稱">
-        
-        <label>價格</label>
-        <input type="number" id="price" placeholder="請輸入金額">
-        
-        <label>圖片路徑</label>
-        <input type="text" id="image" placeholder="例: images/t004.jpg">
-        
-        <button class="btn-save" id="saveBtn" onclick="saveItem()">儲存餐點資訊 ✨</button>
-        <button class="btn-clear" onclick="clearForm()">取消編輯 / 清空欄位</button>
+        <input type="text" id="category" placeholder="分類 (例如：咖啡類)">
+        <input type="text" id="name" placeholder="餐點名稱">
+        <input type="number" id="price" placeholder="價格">
+        <input type="text" id="image" placeholder="圖片路徑 (例如：images/t004.jpg)">
+        <button class="btn-save" onclick="saveItem()">儲存餐點資訊 ✨</button>
     </div>
 
     <table>
-        <thead>
-            <tr>
-                <th>分類</th>
-                <th>圖片</th>
-                <th>名稱</th>
-                <th>價格</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody id="menu-table-body"></tbody>
+        <thead><tr><th>分類</th><th>圖片</th><th>名稱</th><th>價格</th><th>操作</th></tr></thead>
+        <tbody id="menu-list"></tbody>
     </table>
 
 <script>
-    // 您的 Firebase 配置 (已根據截圖資訊校對)
+    // 根據您的截圖 校對的 Firebase 配置
     const firebaseConfig = {
         apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
         authDomain: "blingorder.firebaseapp.com",
@@ -77,12 +43,8 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 儲存餐點的關鍵函數
     function saveItem() {
-        console.log("按鈕已點擊");
-        const editId = document.getElementById('edit-id').value;
-        const id = editId || Date.now();
-        
+        const id = document.getElementById('edit-id').value || Date.now();
         const data = {
             category: document.getElementById('category').value || "未分類",
             name: document.getElementById('name').value,
@@ -91,69 +53,33 @@
             isSoldOut: false
         };
 
-        if (!data.name || !data.price) {
-            alert("請務必填寫『名稱』與『價格』！");
-            return;
-        }
+        if (!data.name || !data.price) return alert("名稱與價格必填！");
 
-        // 寫入資料庫
+        // 執行寫入
         db.ref('menu/' + id).set(data)
-        .then(() => {
-            alert("✅ 儲存成功！");
-            clearForm();
-        })
-        .catch(error => {
-            console.error("寫入錯誤:", error);
-            alert("❌ 儲存失敗！原因：" + error.message);
-        });
+            .then(() => {
+                alert("儲存成功！");
+                document.getElementById('edit-id').value = "";
+                document.querySelectorAll('input').forEach(i => i.value = "");
+            })
+            .catch(err => alert("儲存失敗：" + err.message));
     }
 
-    // 將資料填回輸入框進行修改
-    function editItem(id, cat, name, price, img) {
-        document.getElementById('panel-title').innerText = "正在編輯：" + name;
-        document.getElementById('edit-id').value = id;
-        document.getElementById('category').value = cat === '未分類' ? '' : cat;
-        document.getElementById('name').value = name;
-        document.getElementById('price').value = price;
-        document.getElementById('image').value = img;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function clearForm() {
-        document.getElementById('panel-title').innerText = "新增餐點";
-        document.getElementById('edit-id').value = "";
-        document.getElementById('category').value = "";
-        document.getElementById('name').value = "";
-        document.getElementById('price').value = "";
-        document.getElementById('image').value = "";
-    }
-
-    // 實時監聽資料庫，顯示列表
+    // 即時顯示列表
     db.ref('menu').on('value', snap => {
-        const body = document.getElementById('menu-table-body');
-        body.innerHTML = "";
+        const list = document.getElementById('menu-list');
+        list.innerHTML = "";
         snap.forEach(child => {
-            const item = child.val();
-            const id = child.key;
-            body.innerHTML += `
-                <tr>
-                    <td>${item.category || '未分類'}</td>
-                    <td><img src="${item.image}" class="img-preview" onerror="this.src='https://placehold.co/100?text=None'"></td>
-                    <td>${item.name}</td>
-                    <td>$${item.price}</td>
-                    <td>
-                        <button class="btn-edit" onclick="editItem('${id}', '${item.category}', '${item.name}', '${item.price}', '${item.image}')">修改</button>
-                        <button class="btn-del" onclick="deleteItem('${id}')">刪除</button>
-                    </td>
-                </tr>`;
+            const i = child.val();
+            list.innerHTML += `<tr>
+                <td>${i.category}</td>
+                <td><img src="${i.image}" class="img-preview" onerror="this.src='https://placehold.co/50?text=No+Img'"></td>
+                <td>${i.name}</td>
+                <td>$${i.price}</td>
+                <td><button onclick="db.ref('menu/${child.key}').remove()">刪除</button></td>
+            </tr>`;
         });
     });
-
-    function deleteItem(id) {
-        if(confirm('確定要永久刪除這項餐點嗎？')) {
-            db.ref('menu/' + id).remove();
-        }
-    }
 </script>
 </body>
 </html>
