@@ -8,62 +8,64 @@
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary-pink: #ff85a2; --bg-color: #fcfcfc; }
-        body { font-family: "PingFang TC", sans-serif; background: var(--bg-color); margin: 0; padding-bottom: 120px; }
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg-color); margin: 0; padding-bottom: 120px; }
         
+        /* 標題與桌號 */
         .brand-header { position: sticky; top: 0; background: white; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; padding: 15px 0; }
-        .brand-name { font-size: 22px; font-weight: bold; color: var(--primary-pink); }
+        .brand-name { font-size: 24px; font-weight: bold; color: var(--primary-pink); letter-spacing: 1px; }
+        .table-info { font-size: 14px; color: #888; margin-top: 4px; font-weight: bold; }
 
-        .category-nav { display: flex; gap: 10px; overflow-x: auto; padding: 10px; background: white; white-space: nowrap; border-bottom: 1px solid #eee; }
-        .cat-btn { padding: 8px 16px; border-radius: 20px; border: 1px solid var(--primary-pink); background: white; color: var(--primary-pink); font-weight: bold; cursor: pointer; }
+        /* 分類導覽 */
+        .category-nav { display: flex; gap: 10px; overflow-x: auto; padding: 10px; background: white; white-space: nowrap; border-bottom: 1px solid #eee; scrollbar-width: none; }
+        .cat-btn { padding: 8px 18px; border-radius: 20px; border: 1px solid var(--primary-pink); background: white; color: var(--primary-pink); font-weight: bold; cursor: pointer; transition: 0.3s; }
         .cat-btn.active { background: var(--primary-pink); color: white; }
 
+        /* 菜單網格 */
         .menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 12px; }
-        .food-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
-        .food-img-box { width: 100%; aspect-ratio: 1/1; background: #f0f0f0; }
+        .food-card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; border: 1px solid #fff0f3; }
+        .food-img-box { width: 100%; aspect-ratio: 1/1; background: #f9f9f9; }
         .food-img-box img { width: 100%; height: 100%; object-fit: cover; }
         
         .food-info { padding: 12px; display: flex; flex-direction: column; flex-grow: 1; }
-        .food-name { font-weight: bold; font-size: 16px; color: #333; }
+        .food-name { font-weight: bold; font-size: 16px; color: #333; line-height: 1.4; }
         
-        /* 醒目警語樣式 */
-        .staff-note { color: #ff4d4d; font-size: 13px; font-weight: 800; margin: 6px 0; line-height: 1.4; border-left: 3px solid #ff4d4d; padding-left: 6px; }
+        /* 醒目警語 */
+        .staff-note { color: #ff4d4d; font-size: 12px; font-weight: bold; margin: 6px 0; line-height: 1.3; background: #fff0f0; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #ff4d4d; }
         
-        .food-price { color: var(--primary-pink); font-weight: bold; font-size: 15px; margin: 4px 0; }
+        .food-price { color: var(--primary-pink); font-weight: 800; font-size: 16px; margin: 4px 0; }
 
-        /* 自動化附加選項樣式 */
+        /* 附加選項按鈕 */
         .addon-group { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-        .addon-btn { 
-            font-size: 12px; padding: 5px 10px; border: 1px solid #ddd; border-radius: 18px; 
-            cursor: pointer; background: white; color: #666; transition: all 0.2s;
-        }
+        .addon-btn { font-size: 11px; padding: 5px 10px; border: 1px solid #ddd; border-radius: 15px; cursor: pointer; background: white; color: #666; transition: 0.2s; }
         .addon-btn.selected { background: var(--primary-pink); color: white; border-color: var(--primary-pink); font-weight: bold; }
 
-        .btn-add-to-cart { background: var(--primary-pink); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: auto; font-size: 15px; }
-        .btn-add-to-cart:active { transform: scale(0.96); }
+        .btn-add-cart { background: var(--primary-pink); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: auto; font-size: 15px; box-shadow: 0 4px 10px rgba(255,133,162,0.3); }
+        .btn-add-cart:active { transform: scale(0.95); }
 
-        /* 購物車條 */
-        .cart-bar { position: fixed; bottom: 20px; left: 5%; width: 90%; background: #333; color: white; border-radius: 15px; padding: 15px; box-sizing: border-box; z-index: 1000; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        /* 底部購物車 */
+        .cart-bar { position: fixed; bottom: 20px; left: 5%; width: 90%; background: #333; color: white; border-radius: 20px; padding: 15px 20px; box-sizing: border-box; z-index: 1000; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3); align-items: center; justify-content: space-between; }
+        .submit-btn { background: var(--primary-pink); color: white; border: none; padding: 10px 20px; border-radius: 25px; font-weight: bold; font-size: 16px; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="brand-header">
         <div class="brand-name">BlingOrder ✨</div>
-        <div class="category-nav" id="category-nav">
-            <button class="cat-btn active" onclick="filterCategory('全部')">全部項目</button>
+        <div id="table-label" class="table-info">📍 正在確認桌號...</div>
+        <div class="category-nav" id="cat-nav">
+            <button class="cat-btn active" onclick="filterCat('全部')">全部項目</button>
         </div>
     </div>
 
-    <div class="menu-grid" id="menu-list"></div>
+    <div class="menu-grid" id="menu-container"></div>
 
-    <div class="cart-bar" id="cart-bar">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>🛒 <span id="cart-count">0</span> 項 | <span style="color:var(--primary-pink); font-weight:bold;">$<span id="cart-total">0</span></span></div>
-            <button onclick="submitOrder()" style="background:var(--primary-pink); color:white; border:none; padding:10px 20px; border-radius:20px; font-weight:bold; cursor:pointer;">確認送出</button>
-        </div>
+    <div class="cart-bar" id="cart-ui">
+        <div>🛒 <span id="cart-qty">0</span> 項 | <span style="color:var(--primary-pink); font-weight:bold;">$<span id="cart-sum">0</span></span></div>
+        <button class="submit-btn" onclick="sendOrder()">送出訂單</button>
     </div>
 
 <script>
+    // Firebase 初始化
     const firebaseConfig = {
         apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
         authDomain: "blingorder.firebaseapp.com",
@@ -74,110 +76,112 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const tableNum = new URLSearchParams(window.location.search).get('table') || "M1";
-    let allItems = [];
-    let cart = [];
-    let selections = {}; // 存儲每個產品目前選中的選項
+    // 獲取桌號參數
+    const urlParams = new URLSearchParams(window.location.search);
+    const tableNum = urlParams.get('table') || "M1";
+    document.getElementById('table-label').innerText = `📍 您現在是第 ${tableNum} 桌`;
 
+    let menuData = [];
+    let myCart = [];
+    let itemSelections = {}; // 暫存每個品項選中的附加選項
+
+    // 監聽資料庫
     db.ref('menu').on('value', snap => {
-        allItems = [];
-        const categories = new Set();
+        menuData = [];
+        const cats = new Set();
         snap.forEach(child => {
-            const item = child.val();
-            item.id = child.key;
-            allItems.push(item);
-            if(item.category && item.category !== "未分類") categories.add(item.category);
+            const val = child.val();
+            val.id = child.key;
+            menuData.push(val);
+            if(val.category && val.category !== "undefined") cats.add(val.category);
         });
 
-        const nav = document.getElementById('category-nav');
-        nav.innerHTML = `<button class="cat-btn active" onclick="filterCategory('全部')">全部項目</button>`;
-        categories.forEach(cat => {
-            nav.innerHTML += `<button class="cat-btn" onclick="filterCategory('${cat}')">${cat}</button>`;
+        // 渲染分類導覽
+        const nav = document.getElementById('cat-nav');
+        nav.innerHTML = `<button class="cat-btn active" onclick="filterCat('全部')">全部項目</button>`;
+        cats.forEach(c => {
+            nav.innerHTML += `<button class="cat-btn" onclick="filterCat('${c}')">${c}</button>`;
         });
 
-        renderMenu(allItems);
+        renderMenu(menuData);
     });
 
     function renderMenu(items) {
-        const list = document.getElementById('menu-list');
-        list.innerHTML = "";
-        items.forEach(item => {
-            // 生成附加選項按鈕 (自動化)
+        const container = document.getElementById('menu-container');
+        container.innerHTML = "";
+        items.forEach(i => {
+            // 自動產生附加選項按鈕
             let addonsHtml = "";
-            if (item.addons && item.addons.length > 0) {
+            if (i.addons && i.addons.length > 0) {
                 addonsHtml = `<div class="addon-group">`;
-                item.addons.forEach(addon => {
-                    addonsHtml += `<div class="addon-btn" id="btn-${item.id}-${addon}" onclick="toggleOption('${item.id}', '${addon}')">${addon}</div>`;
+                i.addons.forEach(a => {
+                    addonsHtml += `<div class="addon-btn" id="opt-${i.id}-${a}" onclick="setOpt('${i.id}', '${a}')">${a}</div>`;
                 });
                 addonsHtml += `</div>`;
             }
 
-            list.innerHTML += `
+            container.innerHTML += `
                 <div class="food-card">
-                    <div class="food-img-box"><img src="${item.image || 'https://placehold.co/300'}" onerror="this.src='https://placehold.co/300?text=None'"></div>
+                    <div class="food-img-box"><img src="${i.image}" onerror="this.src='https://placehold.co/300?text=None'"></div>
                     <div class="food-info">
-                        <span class="food-name">${item.name}</span>
-                        ${item.staffNote ? `<div class="staff-note">⚠️ ${item.staffNote}</div>` : ''}
-                        <span class="food-price">$${item.price}</span>
+                        <span class="food-name">${i.name}</span>
+                        ${i.staffNote ? `<div class="staff-note">⚠️ ${i.staffNote}</div>` : ''}
+                        <span class="food-price">$${i.price}</span>
                         ${addonsHtml}
-                        <button class="btn-add-to-cart" onclick="addToCart('${item.id}', '${item.name}', ${item.price})">加入購物車</button>
+                        <button class="btn-add-cart" onclick="addCart('${i.id}', '${i.name}', ${i.price})">加入購物車</button>
                     </div>
-                </div>
-            `;
+                </div>`;
         });
     }
 
-    // 選項切換邏輯
-    function toggleOption(itemId, addon) {
-        if (!selections[itemId]) selections[itemId] = [];
-        
-        // 切換選中狀態 (此處採單選邏輯，較符合飲料需求)
-        const buttons = document.querySelectorAll(`[id^="btn-${itemId}-"]`);
+    // 選項單選切換邏輯
+    function setOpt(id, val) {
+        if (!itemSelections[id]) itemSelections[id] = [];
+        const buttons = document.querySelectorAll(`[id^="opt-${id}-"]`);
         buttons.forEach(b => b.classList.remove('selected'));
-        
-        document.getElementById(`btn-${itemId}-${addon}`).classList.add('selected');
-        selections[itemId] = [addon];
+        document.getElementById(`opt-${id}-${val}`).classList.add('selected');
+        itemSelections[id] = [val];
     }
 
-    function filterCategory(cat) {
+    function filterCat(c) {
         document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
         event.target.classList.add('active');
-        renderMenu(cat === '全部' ? allItems : allItems.filter(i => i.category === cat));
+        renderMenu(c === '全部' ? menuData : menuData.filter(item => item.category === c));
     }
 
-    function addToCart(id, name, price) {
-        const chosen = selections[id] || [];
-        const finalName = chosen.length > 0 ? `${name} (${chosen.join('/')})` : name;
+    function addCart(id, name, price) {
+        const sel = itemSelections[id] || [];
+        const finalTitle = sel.length > 0 ? `${name} (${sel[0]})` : name;
+        myCart.push({ name: finalTitle, price: price });
         
-        cart.push({ name: finalName, price: price });
-        
-        // 加入後重置該品項選擇
-        selections[id] = [];
-        const buttons = document.querySelectorAll(`[id^="btn-${id}-"]`);
+        // 重置該品項按鈕狀態
+        itemSelections[id] = [];
+        const buttons = document.querySelectorAll(`[id^="opt-${id}-"]`);
         buttons.forEach(b => b.classList.remove('selected'));
         
-        updateCartUI();
+        updateCart();
     }
 
-    function updateCartUI() {
-        const bar = document.getElementById('cart-bar');
-        bar.style.display = cart.length > 0 ? 'flex' : 'none';
-        document.getElementById('cart-count').innerText = cart.length;
-        document.getElementById('cart-total').innerText = cart.reduce((s, i) => s + parseInt(i.price), 0);
+    function updateCart() {
+        const ui = document.getElementById('cart-ui');
+        ui.style.display = myCart.length > 0 ? 'flex' : 'none';
+        document.getElementById('cart-qty').innerText = myCart.length;
+        document.getElementById('cart-sum').innerText = myCart.reduce((acc, obj) => acc + parseInt(obj.price), 0);
     }
 
-    function submitOrder() {
-        const orderData = {
+    function sendOrder() {
+        if (myCart.length === 0) return;
+        const orderInfo = {
             table: tableNum,
-            items: cart.map(i => i.name),
-            total: document.getElementById('cart-total').innerText,
+            items: myCart.map(c => c.name),
+            total: document.getElementById('cart-sum').innerText,
             status: "待處理",
             time: new Date().toLocaleTimeString()
         };
-        db.ref('orders/' + Date.now()).set(orderData).then(() => {
-            alert("訂單已送出，請至櫃檯結帳！");
-            cart = [];
-            updateCartUI();
+        db.ref('orders/' + Date.now()).set(orderInfo).then(() => {
+            alert(`第 ${tableNum} 桌訂單已成功送出！`);
+            myCart = [];
+            updateCart();
         });
     }
 </script>
