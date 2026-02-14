@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>BlingOrder | 菜單管理 (完整版)</title>
+    <title>BlingOrder | 菜單管理 (完整修復版)</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
@@ -13,13 +13,13 @@
         .sold-out-box { background: #fff0f3; padding: 12px; border-radius: 8px; margin: 10px 0; border: 1px solid #ffccd5; display: flex; align-items: center; gap: 8px; }
         .btn-save { width: 100%; padding: 15px; background: var(--primary-pink); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 18px; margin-top: 10px; }
         
-        table { width: 100%; background: white; border-collapse: collapse; margin-top: 20px; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        table { width: 100%; background: white; border-collapse: collapse; margin-top: 20px; border-radius: 10px; overflow: hidden; }
         th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
-        th { background: #fafafa; color: #666; font-size: 14px; }
         
-        /* 按鈕樣式 */
+        /* 修正按鈕排列樣式 */
+        .action-btns { display: flex; gap: 8px; }
         .btn-action { padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #ddd; font-weight: bold; font-size: 13px; }
-        .btn-edit { background: #e3f2fd; color: #1976d2; margin-right: 5px; }
+        .btn-edit { background: #e3f2fd; color: #1976d2; }
         .btn-del { background: #fff0f0; color: #d32f2f; }
         .status-tag { padding: 4px 8px; border-radius: 5px; font-size: 12px; font-weight: bold; }
     </style>
@@ -37,7 +37,15 @@
 
     <div class="sold-out-box">
         <input type="checkbox" id="is-sold-out" style="width:18px; height:18px;">
-        <label for="is-sold-out" style="color:#d32f2f; font-weight:bold; cursor:pointer;">今日已售完 (勾選後客人無法下單)</label>
+        <label for="is-sold-out" style="color:#d32f2f; font-weight:bold; cursor:pointer;">🔴 設定為「今日已售完」 (勾選後前端按鈕將變灰)</label>
+    </div>
+
+    <div style="margin: 15px 0;">
+        <label><input type="checkbox" class="addon" value="冰"> 冰</label>
+        <label><input type="checkbox" class="addon" value="去冰"> 去冰</label>
+        <label><input type="checkbox" class="addon" value="熱"> 熱</label>
+        <label><input type="checkbox" class="addon" value="無糖"> 無糖</label>
+        <label><input type="checkbox" class="addon" value="加糖"> 加糖</label>
     </div>
 
     <button class="btn-save" onclick="saveItem()">儲存並發布 ✨</button>
@@ -45,7 +53,7 @@
 
 <table>
     <thead>
-        <tr><th>分類</th><th>名稱/價格</th><th>當前狀態</th><th>操作</th></tr>
+        <tr><th>分類</th><th>圖片</th><th>名稱/價格</th><th>當前狀態</th><th>操作</th></tr>
     </thead>
     <tbody id="menu-tbody"></tbody>
 </table>
@@ -63,16 +71,20 @@
 
     function saveItem() {
         const id = document.getElementById('edit-id').value || Date.now();
+        const addons = [];
+        document.querySelectorAll('.addon:checked').forEach(cb => addons.push(cb.value));
+
         const data = {
             category: document.getElementById('category').value || "未分類",
             name: document.getElementById('name').value,
             price: document.getElementById('price').value,
             image: document.getElementById('image-path').value,
             staffNote: document.getElementById('staff-note').value || "",
-            isSoldOut: document.getElementById('is-sold-out').checked
+            isSoldOut: document.getElementById('is-sold-out').checked,
+            addons: addons
         };
         if(!data.name || !data.price) return alert("名稱與價格為必填！");
-        db.ref('menu/' + id).set(data).then(() => { alert("已發布成功！"); location.reload(); });
+        db.ref('menu/' + id).set(data).then(() => { alert("已儲存！"); location.reload(); });
     }
 
     db.ref('menu').on('value', snap => {
@@ -86,11 +98,14 @@
             tbody.innerHTML += `
                 <tr>
                     <td>${i.category}</td>
+                    <td><img src="${i.image}" width="50" style="border-radius:5px;"></td>
                     <td><b>${i.name}</b><br><small>$${i.price}</small></td>
                     <td><span class="status-tag" style="${statusColor}">${statusText}</span></td>
                     <td>
-                        <button class="btn-action btn-edit" onclick="startEdit('${child.key}')">修改</button>
-                        <button class="btn-action btn-del" onclick="deleteItem('${child.key}')">刪除</button>
+                        <div class="action-btns">
+                            <button class="btn-action btn-edit" onclick="startEdit('${child.key}')">修改</button>
+                            <button class="btn-action btn-del" onclick="deleteItem('${child.key}')">刪除</button>
+                        </div>
                     </td>
                 </tr>`;
         });
@@ -106,13 +121,17 @@
             document.getElementById('image-path').value = i.image;
             document.getElementById('staff-note').value = i.staffNote;
             document.getElementById('is-sold-out').checked = i.isSoldOut || false;
+            
+            document.querySelectorAll('.addon').forEach(cb => {
+                cb.checked = (i.addons || []).includes(cb.value);
+            });
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     }
 
     function deleteItem(id) {
-        if(confirm("確定要刪除這項餐點嗎？這將無法復原。")) {
-            db.ref('menu/' + id).remove().then(() => alert("已刪除"));
+        if(confirm("⚠️ 確定要徹底刪除這項餐點嗎？\n刪除後無法復原，請確認！")) {
+            db.ref('menu/' + id).remove().then(() => alert("已從菜單中移除。"));
         }
     }
 </script>
