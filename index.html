@@ -17,33 +17,31 @@
 
         /* 分類導覽 */
         .category-nav { display: flex; gap: 10px; overflow-x: auto; padding: 10px; background: white; white-space: nowrap; border-bottom: 1px solid #eee; scrollbar-width: none; }
-        .cat-btn { padding: 8px 18px; border-radius: 20px; border: 1px solid var(--primary-pink); background: white; color: var(--primary-pink); font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .cat-btn { padding: 8px 18px; border-radius: 20px; border: 1px solid var(--primary-pink); background: white; color: var(--primary-pink); font-weight: bold; cursor: pointer; }
         .cat-btn.active { background: var(--primary-pink); color: white; }
 
         /* 菜單網格 */
         .menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 12px; }
-        .food-card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; border: 1px solid #fff0f3; }
-        .food-img-box { width: 100%; aspect-ratio: 1/1; background: #f9f9f9; }
-        .food-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .food-card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; border: 1px solid #fff0f3; position: relative; }
+        .food-img-box { width: 100%; aspect-ratio: 1/1; background: #f9f9f9; overflow: hidden; }
+        .food-img-box img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
         
         .food-info { padding: 12px; display: flex; flex-direction: column; flex-grow: 1; }
         .food-name { font-weight: bold; font-size: 16px; color: #333; line-height: 1.4; }
         
+        /* 售完樣式 */
+        .sold-out-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; z-index: 5; pointer-events: none; }
+        .sold-out-badge { background: rgba(0,0,0,0.7); color: white; padding: 5px 15px; border-radius: 5px; font-weight: bold; transform: rotate(-15deg); border: 2px solid white; }
+
         /* 醒目警語 */
-        .staff-note { color: #ff4d4d; font-size: 12px; font-weight: bold; margin: 6px 0; line-height: 1.3; background: #fff0f0; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #ff4d4d; }
+        .staff-note { color: #ff4d4d; font-size: 12px; font-weight: bold; margin: 6px 0; background: #fff0f0; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #ff4d4d; }
         .food-price { color: var(--primary-pink); font-weight: 800; font-size: 16px; margin: 4px 0; }
 
-        /* 選項按鈕 */
-        .addon-group { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-        .addon-btn { font-size: 11px; padding: 5px 10px; border: 1px solid #ddd; border-radius: 15px; cursor: pointer; background: white; color: #666; }
-        .addon-btn.selected { background: var(--primary-pink); color: white; border-color: var(--primary-pink); font-weight: bold; }
-
         .btn-add-cart { background: var(--primary-pink); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: auto; font-size: 15px; }
+        .btn-add-cart:disabled { background: #ccc !important; cursor: not-allowed; }
 
-        /* 購物車與結帳提示 */
+        /* 購物車與提示框 */
         .cart-bar { position: fixed; bottom: 20px; left: 5%; width: 90%; background: #333; color: white; border-radius: 20px; padding: 15px 20px; box-sizing: border-box; z-index: 1000; display: none; align-items: center; justify-content: space-between; }
-        .submit-btn { background: var(--primary-pink); color: white; border: none; padding: 10px 20px; border-radius: 25px; font-weight: bold; font-size: 16px; cursor: pointer; }
-        
         #checkout-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center; text-align:center; }
         .notice-card { background:white; width:85%; padding:30px 20px; border-radius:20px; border:3px solid #ff85a2; }
     </style>
@@ -62,7 +60,7 @@
 
     <div class="cart-bar" id="cart-ui">
         <div>🛒 <span id="cart-qty">0</span> 項 | <span style="color:var(--primary-pink); font-weight:bold;">$<span id="cart-sum">0</span></span></div>
-        <button class="submit-btn" onclick="sendOrder()">送出訂單</button>
+        <button onclick="sendOrder()" style="background:var(--primary-pink); color:white; border:none; padding:10px 20px; border-radius:25px; font-weight:bold;">送出訂單</button>
     </div>
 
 <script>
@@ -76,16 +74,13 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 獲取桌號
     const urlParams = new URLSearchParams(window.location.search);
     const tableNum = urlParams.get('table') || "M1";
     document.getElementById('table-label').innerText = `📍 您現在是第 ${tableNum} 桌`;
 
     let menuData = [];
     let myCart = [];
-    let itemSelections = {}; 
 
-    // 監聽菜單數據
     db.ref('menu').on('value', snap => {
         menuData = [];
         const cats = new Set();
@@ -108,44 +103,34 @@
         const container = document.getElementById('menu-container');
         container.innerHTML = "";
         items.forEach(i => {
-            let addonsHtml = `<div class="addon-group">`;
-            (i.addons || []).forEach(a => {
-                addonsHtml += `<div class="addon-btn" id="opt-${i.id}-${a}" onclick="setOpt('${i.id}', '${a}')">${a}</div>`;
-            });
-            addonsHtml += `</div>`;
-
+            const isSoldOut = i.isSoldOut === true;
+            const soldOutTag = isSoldOut ? `<div class="sold-out-overlay"><div class="sold-out-badge">SOLD OUT</div></div>` : "";
+            const imgStyle = isSoldOut ? `style="filter: grayscale(100%); opacity: 0.7;"` : "";
+            
             container.innerHTML += `
                 <div class="food-card">
-                    <div class="food-img-box"><img src="${i.image}" onerror="this.src='https://placehold.co/300?text=None'"></div>
+                    ${soldOutTag}
+                    <div class="food-img-box"><img src="${i.image}" ${imgStyle} onerror="this.src='https://placehold.co/300?text=None'"></div>
                     <div class="food-info">
-                        <span class="food-name">${i.name}</span>
+                        <span class="food-name" ${isSoldOut ? "style='color:#999'" : ""}>${i.name}</span>
                         ${i.staffNote ? `<div class="staff-note">⚠️ ${i.staffNote}</div>` : ''}
                         <span class="food-price">$${i.price}</span>
-                        ${addonsHtml}
-                        <button class="btn-add-cart" onclick="addCart('${i.id}', '${i.name}', ${i.price})">加入購物車</button>
+                        <button class="btn-add-cart" ${isSoldOut ? 'disabled' : ''} onclick="addCart('${i.id}', '${i.name}', ${i.price})">
+                            ${isSoldOut ? '今日已售完' : '加入購物車'}
+                        </button>
                     </div>
                 </div>`;
         });
     }
 
-    function setOpt(id, val) {
-        const buttons = document.querySelectorAll(`[id^="opt-${id}-"]`);
-        buttons.forEach(b => b.classList.remove('selected'));
-        document.getElementById(`opt-${id}-${val}`).classList.add('selected');
-        itemSelections[id] = [val];
-    }
-
     function filterCat(c) {
         document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-        event.target.classList.add('active');
+        if(event) event.target.classList.add('active');
         renderMenu(c === '全部' ? menuData : menuData.filter(item => item.category === c));
     }
 
     function addCart(id, name, price) {
-        const sel = itemSelections[id] || [];
-        const finalTitle = sel.length > 0 ? `${name} (${sel[0]})` : name;
-        myCart.push({ name: finalTitle, price: price });
-        itemSelections[id] = [];
+        myCart.push({ name: name, price: price });
         updateCart();
     }
 
@@ -156,7 +141,6 @@
         document.getElementById('cart-sum').innerText = myCart.reduce((acc, obj) => acc + parseInt(obj.price), 0);
     }
 
-    // 送出訂單與結帳提示邏輯
     function sendOrder() {
         if (myCart.length === 0) return;
         const orderInfo = {
