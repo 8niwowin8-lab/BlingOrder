@@ -2,41 +2,53 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>BlingOrder | 菜單管理 (營運強化版)</title>
+    <title>BlingOrder | 菜單進階管理 (路徑模式)</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary-pink: #ff85a2; }
         body { font-family: sans-serif; background: #fff5f7; padding: 20px; }
-        .edit-panel { background: white; padding: 20px; border-radius: 15px; border: 2px solid var(--primary-pink); max-width: 700px; margin: 0 auto 30px; }
-        input, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        .sold-out-box { background: #fff0f3; padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px solid #ffccd5; }
+        .edit-panel { background: white; padding: 25px; border-radius: 15px; border: 2px solid var(--primary-pink); max-width: 700px; margin: 0 auto 30px; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        
+        /* 售完功能專用樣式 */
+        .sold-out-control { background: #fff0f3; padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px solid #ffccd5; display: flex; align-items: center; gap: 10px; }
+        .sold-out-control label { color: #ff4d4d; font-weight: bold; cursor: pointer; }
+
         .btn-save { width: 100%; padding: 15px; background: var(--primary-pink); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 18px; }
-        table { width: 100%; background: white; border-collapse: collapse; margin-top: 20px; }
+        table { width: 100%; background: white; border-collapse: collapse; margin-top: 20px; border-radius: 10px; overflow: hidden; }
         th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
+        .status-tag { padding: 4px 8px; border-radius: 5px; font-size: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="edit-panel">
-        <h3>✨ 菜單管理</h3>
+        <h3 id="form-title">✨ 菜單進階管理 (路徑模式)</h3>
         <input type="hidden" id="edit-id">
-        <input type="text" id="category" placeholder="分類 (例如：甜點類)">
+        <input type="text" id="category" placeholder="餐點分類 (例如：咖啡類)">
         <input type="text" id="name" placeholder="餐點名稱">
         <input type="number" id="price" placeholder="價格">
-        <input type="text" id="image-path" placeholder="圖片路徑 (images/檔名.jpg)">
-        <input type="text" id="staff-note" placeholder="工作人員警語">
+        <input type="text" id="image-path" placeholder="圖片路徑 (例如：images/012.jpg)">
+        <input type="text" id="staff-note" placeholder="工作人員專用備註 (紅字顯示)">
         
-        <div class="sold-out-box">
-            <label style="color: #ff4d4d; font-weight: bold;">
-                <input type="checkbox" id="is-sold-out" style="width: auto;"> 🔴 今日已售完 (勾選後客人無法下單)
-            </label>
+        <div class="sold-out-control">
+            <input type="checkbox" id="is-sold-out" style="width: 20px; height: 20px;">
+            <label for="is-sold-out">🔴 設定為「今日已售完」 (勾選後前端按鈕將變灰停用)</label>
+        </div>
+
+        <div style="margin: 15px 0;">
+            <label><input type="checkbox" class="addon" value="冰"> 冰</label>
+            <label><input type="checkbox" class="addon" value="去冰"> 去冰</label>
+            <label><input type="checkbox" class="addon" value="熱"> 熱</label>
+            <label><input type="checkbox" class="addon" value="無糖"> 無糖</label>
+            <label><input type="checkbox" class="addon" value="加糖"> 加糖</label>
         </div>
 
         <button class="btn-save" onclick="saveItem()">儲存並發布 ✨</button>
     </div>
 
     <table>
-        <thead><tr><th>分類</th><th>名稱</th><th>狀態</th><th>操作</th></tr></thead>
+        <thead><tr><th>分類</th><th>圖片</th><th>名稱</th><th>狀態</th><th>操作</th></tr></thead>
         <tbody id="menu-list"></tbody>
     </table>
 
@@ -53,15 +65,22 @@
 
     function saveItem() {
         const id = document.getElementById('edit-id').value || Date.now();
+        const addons = [];
+        document.querySelectorAll('.addon:checked').forEach(cb => addons.push(cb.value));
+        
         const data = {
             category: document.getElementById('category').value,
             name: document.getElementById('name').value,
             price: document.getElementById('price').value,
             image: document.getElementById('image-path').value,
             staffNote: document.getElementById('staff-note').value,
-            isSoldOut: document.getElementById('is-sold-out').checked
+            isSoldOut: document.getElementById('is-sold-out').checked, // 儲存狀態
+            addons: addons
         };
-        db.ref('menu/' + id).set(data).then(() => { alert("儲存成功"); location.reload(); });
+        db.ref('menu/' + id).set(data).then(() => { 
+            alert("✅ 設定已更新！"); 
+            location.reload(); 
+        });
     }
 
     db.ref('menu').on('value', snap => {
@@ -69,10 +88,15 @@
         list.innerHTML = "";
         snap.forEach(child => {
             const i = child.val();
+            const statusHtml = i.isSoldOut ? 
+                '<span class="status-tag" style="background:#ffebee; color:#d32f2f;">已售完</span>' : 
+                '<span class="status-tag" style="background:#e8f5e9; color:#2e7d32;">供餐中</span>';
+            
             list.innerHTML += `<tr>
                 <td>${i.category}</td>
+                <td><img src="${i.image}" width="50" style="border-radius:5px;"></td>
                 <td>${i.name}</td>
-                <td style="color:${i.isSoldOut?'red':'green'}">${i.isSoldOut?'已售完':'供餐中'}</td>
+                <td>${statusHtml}</td>
                 <td><button onclick="startEdit('${child.key}')">修改</button></td>
             </tr>`;
         });
@@ -88,7 +112,11 @@
             document.getElementById('image-path').value = i.image;
             document.getElementById('staff-note').value = i.staffNote || "";
             document.getElementById('is-sold-out').checked = i.isSoldOut || false;
-            window.scrollTo(0,0);
+            
+            document.querySelectorAll('.addon').forEach(cb => {
+                cb.checked = (i.addons || []).includes(cb.value);
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     }
 </script>
