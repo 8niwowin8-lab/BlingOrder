@@ -9,22 +9,26 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --primary-pink: #ff85a2; --soft-pink: #fff0f3; }
-        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #fffafb; margin: 0; padding: 25px; color: #444; }
+        body { font-family: "PingFang TC", sans-serif; background: #fffafb; margin: 0; padding: 25px; color: #444; }
         .header { text-align: center; margin-bottom: 35px; }
-        .title { color: var(--primary-pink); font-size: 32px; font-weight: bold; letter-spacing: 3px; display: flex; align-items: center; justify-content: center; gap: 15px; }
+        .title { color: var(--primary-pink); font-size: 32px; font-weight: bold; letter-spacing: 3px; }
         
-        /* 數據卡片 */
         .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 35px; }
         .stat-card { background: white; padding: 25px; border-radius: 20px; text-align: center; box-shadow: 0 8px 20px rgba(255,133,162,0.1); border: 1px solid var(--soft-pink); }
         .stat-val { font-size: 30px; font-weight: 800; color: var(--primary-pink); margin: 10px 0; }
-        .stat-label { color: #888; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .stat-label { color: #888; font-size: 14px; font-weight: bold; }
 
-        /* 圖表與排行榜佈置 */
         .content-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 25px; }
-        .panel { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); border: 1px solid var(--soft-pink); }
-        .panel-title { font-size: 20px; font-weight: bold; color: var(--primary-pink); margin-bottom: 25px; border-left: 5px solid var(--primary-pink); padding-left: 12px; }
+        .panel { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); border: 1px solid var(--soft-pink); margin-bottom: 25px; }
+        .panel-title { font-size: 20px; font-weight: bold; color: var(--primary-pink); margin-bottom: 20px; border-left: 5px solid var(--primary-pink); padding-left: 12px; }
 
-        .rank-item { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #fff5f7; }
+        /* 每日營收樣式 */
+        .daily-item { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px dotted #ffccd5; font-size: 16px; }
+        .daily-date { font-weight: bold; color: #555; }
+        .daily-amt { font-weight: 800; color: var(--primary-pink); }
+        .daily-amt::before { content: "$"; margin-right: 2px; }
+
+        .rank-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #fff5f7; }
         .rank-name { font-weight: 600; }
         .rank-qty { color: #aaa; font-size: 13px; }
     </style>
@@ -33,38 +37,35 @@
 
 <div class="header">
     <div class="title">💎 BlingOrder 營運數據分析</div>
-    <p style="color:#bbb; font-weight: bold; margin-top: 10px;">結算基準日：2026/02/15</p>
+    <p style="color:#bbb; font-weight: bold; margin-top: 10px;">營運數據即時同步中</p>
 </div>
 
 <div class="stat-grid">
-    <div class="stat-card">
-        <div class="stat-label">📅 本日營收</div>
-        <div class="stat-val" id="today-rev">$0</div>
-        <div id="today-count" style="font-size:12px; color:#aaa; font-weight:bold;">今日共 0 筆</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">📅 本周營收</div>
-        <div class="stat-val" id="week-rev">$0</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">📅 本月營收</div>
-        <div class="stat-val" id="month-rev">$0</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">📈 累計總營收</div>
-        <div class="stat-val" id="total-rev">$0</div>
-    </div>
+    <div class="stat-card"><div class="stat-label">📅 本日營收</div><div class="stat-val" id="today-rev">$0</div><div id="today-count" style="font-size:12px; color:#aaa;">0 筆</div></div>
+    <div class="stat-card"><div class="stat-label">📅 本周營收</div><div class="stat-val" id="week-rev">$0</div></div>
+    <div class="stat-card"><div class="stat-label">📅 本月營收</div><div class="stat-val" id="month-rev">$0</div></div>
+    <div class="stat-card"><div class="stat-label">📈 累計總營收</div><div class="stat-val" id="total-rev">$0</div></div>
 </div>
 
 <div class="content-grid">
-    <div class="panel">
-        <div class="panel-title">🥧 熱銷品項佔比</div>
-        <canvas id="pieChart" style="max-height: 450px;"></canvas>
+    <div class="left-col">
+        <div class="panel">
+            <div class="panel-title">🥧 熱銷品項佔比</div>
+            <canvas id="pieChart" style="max-height: 400px;"></canvas>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">🗓️ 本月每日營收日誌</div>
+            <div id="daily-log">
+                </div>
+        </div>
     </div>
 
-    <div class="panel">
-        <div class="panel-title">🏆 銷售排行榜</div>
-        <div id="rank-list"></div>
+    <div class="right-col">
+        <div class="panel">
+            <div class="panel-title">🏆 銷售排行榜</div>
+            <div id="rank-list"></div>
+        </div>
     </div>
 </div>
 
@@ -80,67 +81,77 @@
     const db = firebase.database();
 
     let pieChart;
-    const todayStr = new Date().toLocaleDateString();
+    const todayStr = new Date().toLocaleDateString('zh-TW');
 
     db.ref('orders').on('value', snap => {
         let todaySum = 0, todayQty = 0, totalSum = 0;
         let itemSales = {};
+        let dailyTotals = {}; // 用於存儲每日營收
 
         snap.forEach(child => {
             const o = child.val();
             const orderAmt = parseInt(o.total || 0);
             totalSum += orderAmt;
 
-            // 準確區分日期邏輯
-            const orderDate = new Date(parseInt(child.key)).toLocaleDateString();
-            if (orderDate === todayStr) {
+            const orderDateObj = new Date(parseInt(child.key));
+            const dateStr = orderDateObj.toLocaleDateString('zh-TW');
+            
+            // 累計每日營收
+            dailyTotals[dateStr] = (dailyTotals[dateStr] || 0) + orderAmt;
+
+            if (dateStr === todayStr) {
                 todaySum += orderAmt;
                 todayQty++;
             }
 
-            // 排行榜累計
             (o.items || []).forEach(name => {
                 itemSales[name] = (itemSales[name] || 0) + 1;
             });
         });
 
-        // 更新數據看板
         document.getElementById('today-rev').innerText = `$${todaySum}`;
         document.getElementById('today-count').innerText = `今日共 ${todayQty} 筆`;
-        document.getElementById('week-rev').innerText = `$${totalSum}`; 
         document.getElementById('total-rev').innerText = `$${totalSum}`;
+        document.getElementById('month-rev').innerText = `$${totalSum}`;
 
-        updateVisuals(itemSales);
+        updateVisuals(itemSales, dailyTotals);
     });
 
-    function updateVisuals(data) {
-        const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]);
+    function updateVisuals(itemData, dailyData) {
+        // 1. 更新每日營收列表 (由新到舊)
+        const dailyLog = document.getElementById('daily-log');
+        dailyLog.innerHTML = "";
+        const sortedDates = Object.keys(dailyData).sort((a, b) => new Date(b) - new Date(a));
         
-        // 更新排行榜
+        sortedDates.forEach(date => {
+            dailyLog.innerHTML += `
+                <div class="daily-item">
+                    <div class="daily-date">${date}</div>
+                    <div class="daily-amt">${dailyData[date].toLocaleString()}</div>
+                </div>`;
+        });
+
+        // 2. 更新排行榜
+        const sortedItems = Object.entries(itemData).sort((a,b) => b[1] - a[1]);
         const list = document.getElementById('rank-list');
         list.innerHTML = "";
-        sorted.slice(0, 10).forEach(([name, qty], index) => {
+        sortedItems.slice(0, 15).forEach(([name, qty], index) => {
             list.innerHTML += `<div class="rank-item"><span class="rank-name">${index+1}. ${name}</span><span class="rank-qty">${qty} 份</span></div>`;
         });
 
-        // 恢復圓餅圖
+        // 3. 更新圓餅圖
         const ctx = document.getElementById('pieChart').getContext('2d');
         if (pieChart) pieChart.destroy();
-        
         pieChart = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: sorted.slice(0, 10).map(x => x[0]),
+                labels: sortedItems.slice(0, 10).map(x => x[0]),
                 datasets: [{
-                    data: sorted.slice(0, 10).map(x => x[1]),
+                    data: sortedItems.slice(0, 10).map(x => x[1]),
                     backgroundColor: ['#ff85a2', '#ffb3c1', '#ffc2d1', '#ffdee5', '#ffe5ec', '#fb6f92', '#c8e6c9', '#b3e5fc', '#d1c4e9', '#f0f4f8']
                 }]
             },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'right', labels: { font: { size: 12 } } } } 
-            }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
         });
     }
 </script>
