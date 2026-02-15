@@ -8,7 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary-pink: #ff85a2; --bg-color: #fcfcfc; }
-        body { font-family: "PingFang TC", sans-serif; background: var(--bg-color); margin: 0; padding-bottom: 120px; overflow-x: hidden; }
+        body { font-family: "PingFang TC", sans-serif; background: var(--bg-color); margin: 0; padding-bottom: 120px; }
         
         .brand-header { position: sticky; top: 0; background: white; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; padding: 15px 0; }
         .brand-name { font-size: 24px; font-weight: bold; color: var(--primary-pink); }
@@ -26,25 +26,19 @@
         .food-name { font-weight: bold; font-size: 15px; color: #333; height: 42px; overflow: hidden; }
         .food-price { color: var(--primary-pink); font-weight: 800; font-size: 16px; margin: 5px 0; }
 
-        /* 選項按鈕 - 修正跳動問題 */
         .addon-group { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; min-height: 30px; }
-        .addon-btn { font-size: 11px; padding: 6px 10px; border: 1px solid #eee; border-radius: 12px; cursor: pointer; background: #fdfdfd; color: #888; transition: none; }
+        .addon-btn { font-size: 11px; padding: 6px 12px; border: 1px solid #eee; border-radius: 12px; cursor: pointer; background: #fdfdfd; color: #888; }
         .addon-btn.selected { background: var(--primary-pink); color: white; border-color: var(--primary-pink); font-weight: bold; }
 
         .btn-add-cart { background: var(--primary-pink); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: auto; }
 
-        /* 底部購物車 - 增加高度與感應區 */
-        .cart-bar { position: fixed; bottom: 20px; left: 5%; width: 90%; background: #333; color: white; border-radius: 25px; padding: 18px 25px; box-sizing: border-box; z-index: 999; display: none; align-items: center; justify-content: space-between; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
-        
-        /* 購物車明細彈窗 - 修正顯示層級 */
+        /* 底部橫條優化 */
+        .cart-bar { position: fixed; bottom: 20px; left: 5%; width: 90%; background: #222; color: white; border-radius: 25px; padding: 18px 25px; box-sizing: border-box; z-index: 999; display: none; align-items: center; justify-content: space-between; box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
+        .modify-text { color: #ff85a2; font-weight: bold; font-size: 14px; margin-left: 5px; text-decoration: underline; }
+
         #cart-detail-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; display: none; align-items: center; justify-content: center; }
-        .cart-modal { background: white; width: 88%; max-height: 75%; border-radius: 20px; padding: 25px 20px; overflow-y: auto; position: relative; }
+        .cart-modal { background: white; width: 88%; max-height: 75%; border-radius: 20px; padding: 25px 20px; overflow-y: auto; }
         .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #f0f0f0; }
-        .item-info { display: flex; flex-direction: column; gap: 3px; }
-        .item-name { font-weight: bold; color: #333; font-size: 15px; }
-        .item-price { color: var(--primary-pink); font-size: 13px; }
-        
-        /* 刪除按鈕樣式 */
         .btn-remove { background: #fff0f0; color: #ff4d4d; border: 1px solid #ffccd5; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
@@ -52,20 +46,23 @@
 
     <div class="brand-header">
         <div class="brand-name">BlingOrder ✨</div>
-        <div id="table-label" class="table-info">📍 載入桌號中...</div>
+        <div id="table-label" class="table-info">📍 您現在是第 1 桌</div>
         <div class="category-nav" id="cat-nav"></div>
     </div>
 
     <div class="menu-grid" id="menu-container"></div>
 
     <div class="cart-bar" id="cart-ui" onclick="showCartDetail()">
-        <div style="flex-grow: 1;">🛒 <span id="cart-qty">0</span> 項 | <span style="color:var(--primary-pink); font-weight:bold;">$<span id="cart-sum">0</span></span> <small>(點我修改)</small></div>
+        <div style="flex-grow: 1; font-size: 16px;">
+            🛒 <span id="cart-qty">0</span> 項 | <span id="cart-sum">0</span>元 
+            <span class="modify-text">(點我修改點餐內容)</span>
+        </div>
         <button onclick="event.stopPropagation(); sendOrder()" style="background:var(--primary-pink); color:white; border:none; padding:10px 22px; border-radius:20px; font-weight:bold; font-size:15px;">送出訂單</button>
     </div>
 
     <div id="cart-detail-overlay" onclick="hideCartDetail()">
         <div class="cart-modal" onclick="event.stopPropagation()">
-            <h3 style="color:var(--primary-pink); text-align:center; margin-top:0; border-bottom:2px solid #fff0f3; padding-bottom:10px;">📋 您的點餐清單</h3>
+            <h3 style="color:var(--primary-pink); text-align:center; margin-top:0;">📋 您的點餐清單</h3>
             <div id="cart-list"></div>
             <button onclick="hideCartDetail()" style="width:100%; margin-top:20px; padding:15px; background:var(--primary-pink); color:white; border:none; border-radius:12px; font-weight:bold; font-size:16px;">繼續點餐</button>
         </div>
@@ -105,7 +102,6 @@
         renderMenu(menuData);
     });
 
-    // 修正：重新渲染時保留捲軸位置
     function renderMenu(items) {
         const container = document.getElementById('menu-container');
         let html = "";
@@ -113,9 +109,7 @@
             let addonsHtml = `<div class="addon-group">`;
             if (i.addons && i.addons.length > 0) {
                 i.addons.forEach(a => {
-                    const isSel = (currentSelections[i.id] || []).includes(a);
-                    // 修正：onclick 使用 event.preventDefault 防止跳動
-                    addonsHtml += `<div class="addon-btn ${isSel?'selected':''}" onclick="setOpt(event, '${i.id}', '${a}')">${a}</div>`;
+                    addonsHtml += `<div class="addon-btn" id="btn-${i.id}-${a}" onclick="setOpt(event, '${i.id}', '${a}')">${a}</div>`;
                 });
             }
             addonsHtml += `</div>`;
@@ -134,20 +128,30 @@
         container.innerHTML = html;
     }
 
+    // 關鍵修復：不再完整重新渲染，僅切換 Class
     function setOpt(e, itemId, val) {
-        if(e) e.preventDefault(); // 核心：防止頁面跳動
+        if(e) e.preventDefault();
+        
+        // 移除該品項所有按鈕的選取狀態
+        const groupButtons = document.querySelectorAll(`[id^="btn-${itemId}-"]`);
+        groupButtons.forEach(btn => btn.classList.remove('selected'));
+        
+        // 選取點擊的那個按鈕
+        e.target.classList.add('selected');
         currentSelections[itemId] = [val]; 
-        // 僅更新當前按鈕狀態，不完整重新渲染整個列表以維持捲軸
-        renderMenu(menuData); 
     }
 
     function addCart(id, name, price) {
         const sel = currentSelections[id] || [];
         const finalName = sel.length > 0 ? `${name} (${sel[0]})` : name;
         myCart.push({ name: finalName, price: price });
+        
+        // 重置選取狀態
         currentSelections[id] = []; 
+        const groupButtons = document.querySelectorAll(`[id^="btn-${id}-"]`);
+        groupButtons.forEach(btn => btn.classList.remove('selected'));
+        
         updateCart();
-        renderMenu(menuData);
     }
 
     function updateCart() {
@@ -161,10 +165,7 @@
         myCart.forEach((item, index) => {
             listContainer.innerHTML += `
                 <div class="cart-item">
-                    <div class="item-info">
-                        <span class="item-name">${item.name}</span>
-                        <span class="item-price">$${item.price}</span>
-                    </div>
+                    <div><b>${item.name}</b><br><small>$${item.price}</small></div>
                     <div class="btn-remove" onclick="removeFromCart(${index})">❌ 刪除</div>
                 </div>`;
         });
@@ -178,12 +179,12 @@
 
     function showCartDetail() {
         document.getElementById('cart-detail-overlay').style.display = 'flex';
-        document.body.style.overflow = 'hidden'; // 鎖定背景捲軸
+        document.body.style.overflow = 'hidden'; 
     }
 
     function hideCartDetail() {
         document.getElementById('cart-detail-overlay').style.display = 'none';
-        document.body.style.overflow = 'auto'; // 恢復背景捲軸
+        document.body.style.overflow = 'auto'; 
     }
 
     function sendOrder() {
@@ -195,7 +196,7 @@
             status: "待處理",
             time: new Date().toLocaleTimeString()
         }).then(() => {
-            alert(`第 ${tableNum} 桌訂單已送出！請至櫃檯結帳。`);
+            alert(`第 ${tableNum} 桌訂單已成功送出！請至櫃檯結帳。`);
             myCart = []; updateCart();
             hideCartDetail();
         });
