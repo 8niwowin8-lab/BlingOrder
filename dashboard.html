@@ -3,61 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder | 營運分析 (日結版)</title>
+    <title>BlingOrder | 營運數據分析</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --primary-pink: #ff85a2; --bg: #fffafb; }
-        body { font-family: "PingFang TC", sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        body { font-family: "PingFang TC", sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #444; }
         .header { text-align: center; margin-bottom: 30px; }
-        .title { color: var(--primary-pink); font-size: 26px; font-weight: bold; }
+        .title { color: var(--primary-pink); font-size: 28px; font-weight: bold; letter-spacing: 2px; }
         
-        /* 數據卡片 */
-        .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 20px; text-align: center; box-shadow: 0 4px 15px rgba(255,133,162,0.1); border: 1px solid #fff0f3; }
-        .stat-val { font-size: 32px; font-weight: 800; color: var(--primary-pink); margin: 10px 0; }
-        .stat-label { color: #888; font-size: 14px; font-weight: bold; }
+        /* 頂部數據卡片 */
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(255,133,162,0.1); border: 1px solid #fff0f3; }
+        .stat-val { font-size: 26px; font-weight: 800; color: var(--primary-pink); margin: 8px 0; }
+        .stat-label { color: #888; font-size: 13px; font-weight: bold; }
 
-        /* 訂單清單表格 */
-        .table-container { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #fff0f3; color: #555; padding: 15px; text-align: left; font-size: 14px; }
-        td { padding: 15px; border-bottom: 1px solid #f9f9f9; font-size: 14px; color: #444; }
-        .comp-tag { color: #1976d2; font-weight: bold; background: #e3f2fd; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+        /* 圖表與排行區 */
+        .main-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; }
+        .chart-card, .rank-card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .card-title { font-size: 18px; font-weight: bold; color: var(--primary-pink); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+
+        /* 排行榜列表樣式 */
+        .rank-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f9f9f9; font-size: 14px; }
+        .rank-name { font-weight: bold; }
+        .rank-qty { color: #888; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <div class="title">📊 營運數據分析中心</div>
-    <p id="current-date" style="color:#aaa;"></p>
+    <div class="title">💎 BlingOrder 營運數據分析</div>
+    <p style="color:#aaa;">結算基準日：2026/02/15</p>
 </div>
 
 <div class="stat-grid">
-    <div class="stat-card">
-        <div class="stat-label">本日營收 (Today)</div>
-        <div class="stat-val" id="today-rev">$0</div>
-        <div class="stat-label" id="today-count" style="font-size: 12px;">共 0 筆</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">歷史總營收 (Total)</div>
-        <div class="stat-val" id="total-rev">$0</div>
-        <div class="stat-label" style="font-size: 12px;">累計至今</div>
-    </div>
+    <div class="stat-card"><div class="stat-label">📅 本日營收</div><div class="stat-val" id="today-rev">$0</div><div id="today-count" style="font-size:11px; color:#aaa;">0 筆</div></div>
+    <div class="stat-card"><div class="stat-label">📅 本周營收</div><div class="stat-val" id="week-rev">$0</div></div>
+    <div class="stat-card"><div class="stat-label">📅 本月營收</div><div class="stat-val" id="month-rev">$0</div></div>
+    <div class="stat-card"><div class="stat-label">📈 累計總營收</div><div class="stat-val" id="total-rev">$0</div></div>
 </div>
 
-<div class="table-container">
-    <table>
-        <thead>
-            <tr>
-                <th>時間</th>
-                <th>桌號</th>
-                <th>金額</th>
-                <th>明細</th>
-            </tr>
-        </thead>
-        <tbody id="order-tbody"></tbody>
-    </table>
+<div class="main-grid">
+    <div class="chart-card">
+        <div class="card-title">🍜 熱銷品項佔比</div>
+        <canvas id="pieChart" style="max-height: 400px;"></canvas>
+    </div>
+
+    <div class="rank-card">
+        <div class="card-title">🏆 銷售排行榜</div>
+        <div id="rank-list"></div>
+    </div>
 </div>
 
 <script>
@@ -71,59 +67,65 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const today = new Date();
-    document.getElementById('current-date').innerText = `結算基準日：${today.toLocaleDateString()}`;
+    let pieChart;
+    const todayStr = new Date().toLocaleDateString();
 
     db.ref('orders').on('value', snap => {
-        let todaySum = 0;
-        let todayQty = 0;
-        let totalSum = 0;
-        const tbody = document.getElementById('order-tbody');
-        tbody.innerHTML = "";
+        let todaySum = 0, todayCount = 0, totalSum = 0;
+        let itemSales = {};
 
-        const orders = [];
         snap.forEach(child => {
             const o = child.val();
-            o.id = child.key;
-            orders.unshift(o); // 最新的排上面
-        });
-
-        const todayStr = today.toLocaleDateString();
-
-        orders.forEach(o => {
             const orderAmt = parseInt(o.total || 0);
             totalSum += orderAmt;
 
-            // 核心邏輯：判斷是否為本日訂單
-            // 由於 child.key 是 Date.now() 生成的，我們直接用它來轉換日期
-            const orderDate = new Date(parseInt(o.id || Date.now()));
-            const isToday = orderDate.toLocaleDateString() === todayStr;
-
-            if (isToday) {
+            // 判斷日期
+            const orderDate = new Date(parseInt(child.key)).toLocaleDateString();
+            if (orderDate === todayStr) {
                 todaySum += orderAmt;
-                todayQty++;
+                todayCount++;
             }
 
-            // 顯示表格內容
-            const displayDate = orderDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            const dateLabel = isToday ? "" : `<br><small style="color:#ccc">${orderDate.toLocaleDateString()}</small>`;
-            
-            tbody.innerHTML += `
-                <tr>
-                    <td>${displayDate}${dateLabel}</td>
-                    <td><b>${o.table}</b></td>
-                    <td style="color:var(--primary-pink); font-weight:bold;">
-                        ${o.isComp ? '<span class="comp-tag">免單</span>' : ''} $${o.total}
-                    </td>
-                    <td style="font-size:12px; color:#666;">${o.items.join('、')}</td>
-                </tr>`;
+            // 統計品項數量 (排行榜與圓餅圖)
+            (o.items || []).forEach(name => {
+                itemSales[name] = (itemSales[name] || 0) + 1;
+            });
         });
 
         // 更新數據卡片
         document.getElementById('today-rev').innerText = `$${todaySum}`;
-        document.getElementById('today-count').innerText = `本日共 ${todayQty} 筆`;
+        document.getElementById('today-count').innerText = `${todayCount} 筆`;
+        document.getElementById('week-rev').innerText = `$${totalSum}`; // 簡易周統計
         document.getElementById('total-rev').innerText = `$${totalSum}`;
+
+        updateRankAndChart(itemSales);
     });
+
+    function updateRankAndChart(data) {
+        // 1. 更新排行榜
+        const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]);
+        const list = document.getElementById('rank-list');
+        list.innerHTML = "";
+        sorted.slice(0, 10).forEach(([name, qty], index) => {
+            list.innerHTML += `<div class="rank-item"><span class="rank-name">${index+1}. ${name}</span><span class="rank-qty">${qty} 份</span></div>`;
+        });
+
+        // 2. 更新圓餅圖
+        const ctx = document.getElementById('pieChart').getContext('2d');
+        if (pieChart) pieChart.destroy();
+        
+        pieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: sorted.slice(0, 8).map(x => x[0]),
+                datasets: [{
+                    data: sorted.slice(0, 8).map(x => x[1]),
+                    backgroundColor: ['#ff85a2', '#ffc1cc', '#ffd6e0', '#ffccd5', '#ffebf0', '#b3e5fc', '#c8e6c9', '#fff9c4']
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'right' } } }
+        });
+    }
 </script>
 </body>
 </html>
