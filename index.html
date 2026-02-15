@@ -34,44 +34,62 @@
     </style>
 </head>
 <body>
-    <div class="brand-header"><div class="brand-name">BlingOrder ✨</div><div id="table-label" class="table-info">📍 載入桌號中...</div><div class="category-nav" id="cat-nav"></div></div>
+    <div class="brand-header">
+        <div class="brand-name">BlingOrder ✨</div>
+        <div id="table-label" class="table-info">📍 載入桌號中...</div>
+        <div class="category-nav" id="cat-nav"></div>
+    </div>
     <div class="menu-grid" id="menu-container"></div>
     <div class="cart-bar" id="cart-ui" onclick="showCartDetail()">
         <div style="flex-grow: 1; font-size: 16px;">🛒 <span id="cart-qty">0</span> 項 | <span id="cart-sum">0</span>元 <span class="modify-text">(點我修改點餐內容)</span></div>
         <button onclick="event.stopPropagation(); sendOrder()" style="background:var(--primary-pink); color:white; border:none; padding:10px 22px; border-radius:20px; font-weight:bold; font-size:15px;">送出訂單</button>
     </div>
-    <div id="cart-detail-overlay" onclick="hideCartDetail()"><div class="cart-modal" onclick="event.stopPropagation()"><h3 style="color:var(--primary-pink); text-align:center; margin-top:0;">📋 您的點餐清單</h3><div id="cart-list"></div><button onclick="hideCartDetail()" style="width:100%; margin-top:20px; padding:15px; background:var(--primary-pink); color:white; border:none; border-radius:12px; font-weight:bold; font-size:16px;">繼續點餐</button></div></div>
+    <div id="cart-detail-overlay" onclick="hideCartDetail()">
+        <div class="cart-modal" onclick="event.stopPropagation()">
+            <h3 style="color:var(--primary-pink); text-align:center; margin-top:0;">📋 您的點餐清單</h3>
+            <div id="cart-list"></div>
+            <button onclick="hideCartDetail()" style="width:100%; margin-top:20px; padding:15px; background:var(--primary-pink); color:white; border:none; border-radius:12px; font-weight:bold; font-size:16px;">繼續點餐</button>
+        </div>
+    </div>
 
 <script>
     const firebaseConfig = { apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ", authDomain: "blingorder.firebaseapp.com", projectId: "blingorder", databaseURL: "https://blingorder-default-rtdb.firebaseio.com", appId: "1:798993901664:web:9c2023b419ae099fe9fb05" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const tableNum = urlParams.get('table') || "1";
-    document.getElementById('table-label').innerText = `📍 您現在是第 ${tableNum} 桌`;
+    // 1. 初始化桌號邏輯
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tableNum = urlParams.get('table') || "1";
+        const label = document.getElementById('table-label');
+        if(label) label.innerText = `📍 您現在是第 ${tableNum} 桌`;
+        window.tableNum = tableNum;
+    };
 
     let menuData = [];
     let myCart = [];
     let currentSelections = {}; 
-
-    // 分組定義
     const groupTemp = ["冰", "去冰", "熱"];
     const groupSugar = ["無糖", "加糖"];
 
+    // 2. 獲取資料
     db.ref('menu').on('value', snap => {
         menuData = []; const cats = new Set();
         snap.forEach(child => {
             const val = child.val(); val.id = child.key; menuData.push(val);
             if(val.category && val.category !== "undefined") cats.add(val.category);
         });
-        const nav = document.getElementById('cat-nav'); nav.innerHTML = `<button class="cat-btn active" onclick="filterCat('全部')">全部項目</button>`;
-        cats.forEach(c => nav.innerHTML += `<button class="cat-btn" onclick="filterCat('${c}')">${c}</button>`);
+        const nav = document.getElementById('cat-nav'); 
+        if(nav) {
+            nav.innerHTML = `<button class="cat-btn active" onclick="filterCat('全部')">全部項目</button>`;
+            cats.forEach(c => nav.innerHTML += `<button class="cat-btn" onclick="filterCat('${c}')">${c}</button>`);
+        }
         renderMenu(menuData);
     });
 
     function renderMenu(items) {
         const container = document.getElementById('menu-container');
+        if(!container) return;
         let html = "";
         items.forEach(i => {
             let addonsHtml = `<div class="addon-group">`;
@@ -90,46 +108,4 @@
     function setOpt(e, itemId, val) {
         if(e) e.preventDefault();
         if(!currentSelections[itemId]) currentSelections[itemId] = [];
-        
-        let targetGroup = [];
-        if(groupTemp.includes(val)) targetGroup = groupTemp;
-        else if(groupSugar.includes(val)) targetGroup = groupSugar;
-
-        // 核心邏輯：移除同組的其他選項，保留不同組的
-        currentSelections[itemId] = currentSelections[itemId].filter(item => !targetGroup.includes(item));
-        currentSelections[itemId].push(val);
-
-        // 更新 UI 狀態
-        targetGroup.forEach(opt => {
-            const btn = document.getElementById(`btn-${itemId}-${opt}`);
-            if(btn) btn.classList.remove('selected');
-        });
-        e.target.classList.add('selected');
-    }
-
-    function addCart(id, name, price) {
-        const sel = currentSelections[id] || [];
-        // 依照群組排序顯示，例如 (冰/無糖)
-        const sortedSel = sel.sort((a, b) => groupTemp.indexOf(a) !== -1 ? -1 : 1);
-        const finalName = sortedSel.length > 0 ? `${name} (${sortedSel.join('/')})` : name;
-        myCart.push({ name: finalName, price: price });
-        currentSelections[id] = []; 
-        document.querySelectorAll(`[id^="btn-${id}-"]`).forEach(btn => btn.classList.remove('selected'));
-        updateCart();
-    }
-
-    function updateCart() {
-        const ui = document.getElementById('cart-ui');
-        ui.style.display = myCart.length > 0 ? 'flex' : 'none';
-        document.getElementById('cart-qty').innerText = myCart.length;
-        document.getElementById('cart-sum').innerText = myCart.reduce((acc, obj) => acc + parseInt(obj.price), 0);
-        const listContainer = document.getElementById('cart-list'); listContainer.innerHTML = "";
-        myCart.forEach((item, index) => {
-            listContainer.innerHTML += `<div class="cart-item"><div><b>${item.name}</b><br><small>$${item.price}</small></div><div class="btn-remove" onclick="removeFromCart(${index})">❌ 刪除</div></div>`;
-        });
-    }
-
-    function removeFromCart(index) { myCart.splice(index, 1); updateCart(); if(myCart.length === 0) hideCartDetail(); }
-    function showCartDetail() { document.getElementById('cart-detail-overlay').style.display = 'flex'; document.body.style.overflow = 'hidden'; }
-    function hideCartDetail() { document.getElementById('cart-detail-overlay').style.display = 'none'; document.body.style.overflow = 'auto'; }
-    function send
+        let targetGroup = groupTemp.includes(val) ? groupTemp : (groupSugar.includes(val) ? groupSugar : []);
