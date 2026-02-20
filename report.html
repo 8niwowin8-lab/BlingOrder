@@ -3,38 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder | 營收報表</title>
+    <title>BlingOrder | 完整數據報表</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
-        body { font-family: sans-serif; background: #fdfdfd; padding: 20px; }
-        .report-header { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { padding: 15px; border-bottom: 1px solid #eee; text-align: left; }
-        th { background: #ff85a2; color: white; }
-        .tag-booth { color: #ff85a2; font-weight: bold; }
+        :root { --primary-pink: #ff85a2; --bg: #fcfcfc; }
+        body { font-family: "PingFang TC", sans-serif; background: var(--bg); margin: 0; padding: 15px; }
+        
+        /* 統計資訊 */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px 5px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; border: 1px solid #fff0f3; }
+        .stat-val { font-size: 20px; font-weight: 800; color: var(--primary-pink); display: block; }
+        .stat-label { font-size: 12px; color: #999; font-weight: bold; }
+
+        /* 表格區 */
+        .table-container { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { background: #fdf2f4; color: #888; padding: 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #f9f9f9; vertical-align: middle; }
+        
+        .tag-booth { color: var(--primary-pink); font-weight: bold; }
+        .free-order { color: #4caf50; font-weight: bold; text-decoration: line-through; }
+        
+        /* 功能按鈕 */
+        .btn-action { border: none; padding: 8px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; margin: 2px; }
+        .btn-free { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        .btn-del { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+        .btn-back { display: block; width: 100%; text-align: center; padding: 15px; background: #eee; color: #333; text-decoration: none; border-radius: 12px; margin-bottom: 15px; font-weight: bold; }
     </style>
 </head>
 <body>
-<div class="report-header"><h1>📊 歷史營收清單</h1></div>
-<table>
-    <thead><tr><th>日期時間</th><th>桌號</th><th>金額</th><th>品項</th></tr></thead>
-    <tbody id="report-body"></tbody>
-</table>
+
+<a href="admin.html" class="btn-back">⬅ 返回接單後台</a>
+
+<div class="stats-grid">
+    <div class="stat-card"><span class="stat-label">今日營收</span><span class="stat-val" id="today-revenue">$0</span></div>
+    <div class="stat-card"><span class="stat-label">總單數</span><span class="stat-val" id="today-count">0</span></div>
+    <div class="stat-card"><span class="stat-label">客單價</span><span class="stat-val" id="today-avg">$0</span></div>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>時間/桌號</th>
+                <th>金額</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="report-body"></tbody>
+    </table>
+</div>
+
 <script>
-    const firebaseConfig = { apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ", authDomain: "blingorder.firebaseapp.com", projectId: "blingorder", databaseURL: "https://blingorder-default-rtdb.firebaseio.com", appId: "1:798993901664:web:9c2023b419ae099fe9fb05" };
+    const firebaseConfig = {
+        apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
+        authDomain: "blingorder.firebaseapp.com",
+        projectId: "blingorder",
+        databaseURL: "https://blingorder-default-rtdb.firebaseio.com",
+        appId: "1:798993901664:web:9c2023b419ae099fe9fb05"
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    
-    db.ref('orders').orderByChild('timestamp').on('value', snap => {
-        const tbody = document.getElementById('report-body'); tbody.innerHTML = "";
+    const todayStr = new Date().toLocaleDateString('zh-TW');
+
+    db.ref('orders').on('value', snap => {
+        const tbody = document.getElementById('report-body');
+        tbody.innerHTML = "";
+        let todayRev = 0, todayQty = 0;
+        let ordersArray = [];
+
         snap.forEach(child => {
             const o = child.val();
-            const time = new Date(parseInt(o.timestamp || child.key)).toLocaleString('zh-TW');
-            const tableShow = (o.table == "包廂" || o.table == "7") ? "<span class='tag-booth'>💎 包廂</span>" : o.table + " 桌";
-            tbody.innerHTML = `<tr><td>${time}</td><td>${tableShow}</td><td>$${o.total}</td><td>${o.items.join(', ')}</td></tr>` + tbody.innerHTML;
+            o.id = child.key;
+            ordersArray.push(o);
         });
+        ordersArray.reverse();
+
+        ordersArray.forEach(o => {
+            const timeObj = new Date(parseInt(o.timestamp || o.id));
+            const dateStr = timeObj.toLocaleDateString('zh-TW');
+            const timeStr = timeObj.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+
+            if (dateStr === todayStr) {
+                todayRev += parseInt(o.total || 0);
+                todayQty += 1;
+            }
+
+            const tableShow = (o.table == "7" || o.table == "包廂") ? "<span class='tag-booth'>💎包廂</span>" : o.table + "桌";
+            const isFree = (parseInt(o.total) === 0);
+
+            tbody.innerHTML += `
+                <tr>
+                    <td><small>${timeStr}</small><br>${tableShow}</td>
+                    <td class="${isFree ? 'free-order' : ''}">$${o.total}</td>
+                    <td>
+                        <button class="btn-action btn-free" onclick="makeFree('${o.id}')">免單</button>
+                        <button class="btn-action btn-del" onclick="deleteOrder('${o.id}')">刪除</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="font-size:11px; color:#999; padding-top:0; border-bottom: 2px solid #eee;">
+                        品項：${(o.items || []).join(', ')}
+                    </td>
+                </tr>`;
+        });
+
+        document.getElementById('today-revenue').innerText = `$${todayRev.toLocaleString()}`;
+        document.getElementById('today-count').innerText = `${todayQty}單`;
+        const avg = todayQty > 0 ? Math.round(todayRev / todayQty) : 0;
+        document.getElementById('today-avg').innerText = `$${avg}`;
     });
+
+    // 免單功能：將金額改為 0
+    function makeFree(id) {
+        if(confirm("確定要將此訂單改為「免單 (0元)」嗎？")) {
+            db.ref('orders/' + id).update({ total: 0 });
+        }
+    }
+
+    // 刪除功能：徹底從資料庫移除
+    function deleteOrder(id) {
+        if(confirm("確定要【永久刪除】這筆訂單嗎？刪除後無法恢復喔！")) {
+            db.ref('orders/' + id).remove();
+        }
+    }
 </script>
+
 </body>
 </html>
