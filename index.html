@@ -47,28 +47,22 @@
     <div id="cart-detail-overlay" onclick="hideCartDetail()"><div class="cart-modal" onclick="event.stopPropagation()"><h3 style="color:var(--primary-pink); text-align:center; margin-top:0;">📋 您的點餐清單</h3><div id="cart-list"></div><button onclick="hideCartDetail()" style="width:100%; margin-top:20px; padding:15px; background:var(--primary-pink); color:white; border:none; border-radius:12px; font-weight:bold; font-size:16px;">繼續點餐</button></div></div>
 
 <script>
-    // --- 1. 立即初始化 Firebase 與 獲取桌號 ---
     const firebaseConfig = { apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ", authDomain: "blingorder.firebaseapp.com", projectId: "blingorder", databaseURL: "https://blingorder-default-rtdb.firebaseio.com", appId: "1:798993901664:web:9c2023b419ae099fe9fb05" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     const urlParams = new URLSearchParams(window.location.search);
     const tableNum = urlParams.get('table') || "1";
-    
-    // 【修改重點 1】: 如果桌號是 7，顯示為「包廂」，且之後送出資料也用這組變數
-    const finalTableDisplay = tableNum === "7" ? "💎 包廂" : `📍 第 ${tableNum} 桌`;
+    // 如果是 7 號，存進資料庫叫「包廂」
     const finalTableValue = tableNum === "7" ? "包廂" : tableNum;
-    
-    document.getElementById('table-label').innerText = finalTableDisplay;
+    document.getElementById('table-label').innerText = tableNum === "7" ? "💎 包廂" : `📍 第 ${tableNum} 桌`;
 
-    // --- 2. 核心變數 ---
     let menuData = [];
     let myCart = [];
     let currentSelections = {}; 
     const groupTemp = ["冰", "去冰", "熱"];
     const groupSugar = ["無糖", "加糖"];
 
-    // --- 3. 開始監聽資料 ---
     db.ref('menu').on('value', snap => {
         menuData = []; const cats = new Set();
         snap.forEach(child => {
@@ -99,7 +93,6 @@
                 });
             }
             addonsHtml += `</div>`;
-            
             html += `<div class="food-card">
                 ${isSoldOut ? '<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.6);z-index:5;display:flex;align-items:center;justify-content:center;font-weight:bold;color:#ff4d4d;transform:rotate(-15deg);border:2px solid red;">SOLD OUT</div>' : ''}
                 <div class="food-img-box"><img src="${i.image}" ${isSoldOut ? 'style="filter:grayscale(1)"' : ''} onerror="this.src='https://placehold.co/300?text=None'"></div>
@@ -153,7 +146,6 @@
     function showCartDetail() { document.getElementById('cart-detail-overlay').style.display = 'flex'; document.body.style.overflow = 'hidden'; }
     function hideCartDetail() { document.getElementById('cart-detail-overlay').style.display = 'none'; document.body.style.overflow = 'auto'; }
     
-    // 【修改重點 2】: 這裡送出給資料庫的桌號使用了上面轉譯過的 finalTableValue (包廂)
     function sendOrder() {
         if(myCart.length === 0) return;
         const now = Date.now();
@@ -164,10 +156,8 @@
             status: "待處理", 
             timestamp: now 
         }).then(() => { 
-            alert(`${finalTableValue} 訂單已送出！請至櫃檯結帳。`); 
-            myCart = []; 
-            updateCart(); 
-            hideCartDetail(); 
+            alert(`${finalTableValue} 訂單已送出！`); 
+            myCart = []; updateCart(); hideCartDetail(); 
         });
     }
     
