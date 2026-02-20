@@ -3,40 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder | 接單管理後台</title>
+    <title>BlingOrder | 語音加強版後台</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary-pink: #ff85a2; --bg: #fdfdfd; }
         body { font-family: "PingFang TC", sans-serif; background: var(--bg); margin: 0; padding: 0; }
         
-        /* 語音強制啟動門簾 */
+        /* 啟動門簾 */
         #voice-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary-pink); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
         .start-btn { padding: 30px 60px; font-size: 40px; font-weight: 900; background: white; color: var(--primary-pink); border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        .start-btn:active { transform: scale(0.95); }
 
-        /* 頂部標題列 */
         .admin-header { background: white; padding: 20px; border-bottom: 3px solid var(--primary-pink); display: flex; justify-content: space-between; align-items: center; }
         .rev-info { text-align: right; background: #333; color: white; padding: 10px 20px; border-radius: 12px; }
 
-        /* 回歸原本的清單式編排 */
         .order-list-container { padding: 15px; }
         .order-row { background: white; border-radius: 15px; padding: 25px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); border: 2px solid #eee; display: flex; align-items: center; }
         
-        /* 桌號字體回歸大字感 */
         .table-box { min-width: 140px; text-align: center; border-right: 3px solid #eee; margin-right: 25px; }
         .table-text { font-size: 36px; font-weight: 900; color: #333; }
         .table-text.booth { color: var(--primary-pink); }
         
-        /* 品項清單加大加粗 */
         .items-box { flex-grow: 1; }
         .item-detail { font-size: 32px; font-weight: 800; color: #000; line-height: 1.4; }
         
-        /* 金額與結帳按鈕 */
         .action-box { min-width: 200px; text-align: right; margin-left: 20px; }
         .price-text { font-size: 24px; font-weight: bold; color: var(--primary-pink); margin-bottom: 15px; }
-        .btn-done { background: #4caf50; color: white; border: none; padding: 20px 30px; border-radius: 15px; font-size: 24px; font-weight: bold; cursor: pointer; width: 100%; box-shadow: 0 4px 0 #388e3c; }
-        .btn-done:active { transform: translateY(3px); box-shadow: 0 1px 0 #388e3c; }
+        .btn-done { background: #4caf50; color: white; border: none; padding: 20px 30px; border-radius: 15px; font-size: 24px; font-weight: bold; cursor: pointer; width: 100%; }
 
         .report-link { display: block; text-align: center; padding: 15px; color: #888; text-decoration: none; font-weight: bold; }
     </style>
@@ -44,23 +37,20 @@
 <body>
 
 <div id="voice-overlay">
-    <h1 style="font-size: 32px; margin-bottom: 30px;">📢 準備開始營業嗎？</h1>
-    <button class="start-btn" onclick="initVoice()">點此啟動系統</button>
-    <p style="margin-top: 20px; font-weight: bold;">(啟動後將開啟自動語音提醒)</p>
+    <h1 style="font-size: 32px; margin-bottom: 30px;">📢 準備接單囉！</h1>
+    <button class="start-btn" onclick="initVoice()">點此啟動語音</button>
 </div>
 
 <div class="admin-header">
-    <h1 style="margin:0; font-size:24px; color:var(--primary-pink);">💎 BlingOrder 接單看板</h1>
+    <h1 style="margin:0; font-size:24px; color:var(--primary-pink);">💎 接單監控</h1>
     <div class="rev-info">
-        <div style="font-size:12px; opacity:0.8;">今日營收</div>
         <div id="rev-val" style="font-size:24px; font-weight:bold;">$0</div>
     </div>
 </div>
 
-<div class="order-list-container" id="list-box">
-    </div>
+<div class="order-list-container" id="list-box"></div>
 
-<a href="report.html" class="report-link">前往營收報表明細 ⮕</a>
+<a href="report.html" class="report-link">查看今日報表 ⮕</a>
 
 <script>
     const firebaseConfig = {
@@ -73,16 +63,18 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let canSpeak = false;
-    let knownOrderIds = new Set();
+    let isSystemReady = false;
+    let knownOrderIds = null; // 初始設為 null，方便第一次載入時標記
     const todayStr = new Date().toLocaleDateString('zh-TW');
 
-    // 啟動語音並解除遮罩
     function initVoice() {
-        canSpeak = true;
+        isSystemReady = true;
         document.getElementById('voice-overlay').style.display = 'none';
-        const msg = new SpeechSynthesisUtterance("系統已啟動，祝您生意興隆");
+        
+        // 解決部分瀏覽器靜音問題
+        const msg = new SpeechSynthesisUtterance("語音提醒已就緒");
         msg.lang = 'zh-TW';
+        msg.volume = 1.0;
         window.speechSynthesis.speak(msg);
     }
 
@@ -90,7 +82,8 @@
         const listBox = document.getElementById('list-box');
         listBox.innerHTML = "";
         let todaySum = 0;
-        let foundNew = false;
+        let shouldSpeak = false;
+        let currentIds = new Set();
 
         snap.forEach(child => {
             const o = child.val();
@@ -101,35 +94,39 @@
                 todaySum += parseInt(o.total || 0);
 
                 if (o.status !== "已結帳") {
-                    if (!knownOrderIds.has(id) && knownOrderIds.size > 0) {
-                        foundNew = true;
+                    currentIds.add(id);
+                    
+                    // 【關鍵邏輯】：如果這張單 ID 沒看過，且不是第一次剛開網頁，就播報
+                    if (knownOrderIds !== null && !knownOrderIds.has(id)) {
+                        shouldSpeak = true;
                     }
-                    knownOrderIds.add(id);
 
                     const isB = (o.table == "7" || o.table == "包廂");
-                    const tableDisplay = isB ? "💎包廂" : o.table + "桌";
-                    
                     listBox.innerHTML = `
                         <div class="order-row">
-                            <div class="table-box">
-                                <div class="table-text ${isB ? 'booth' : ''}">${tableDisplay}</div>
-                            </div>
-                            <div class="items-box">
-                                <div class="item-detail">${(o.items || []).join('、')}</div>
-                            </div>
+                            <div class="table-box"><div class="table-text ${isB ? 'booth' : ''}">${isB ? '💎包廂' : o.table + '桌'}</div></div>
+                            <div class="items-box"><div class="item-detail">${(o.items || []).join('、')}</div></div>
                             <div class="action-box">
-                                <div class="price-text">應收 $${o.total}</div>
-                                <button class="btn-done" onclick="finishOrder('${id}')">結帳完成</button>
+                                <div class="price-text">$${o.total}</div>
+                                <button class="btn-done" onclick="finishOrder('${id}')">結帳</button>
                             </div>
                         </div>` + listBox.innerHTML;
                 }
             }
         });
 
-        if (foundNew && canSpeak) {
-            const msg = new SpeechSynthesisUtterance("您有新訂單");
-            msg.lang = 'zh-TW';
-            window.speechSynthesis.speak(msg);
+        // 第一次載入後，更新已知的 ID 清單
+        if (knownOrderIds === null) {
+            knownOrderIds = currentIds;
+        } else {
+            if (shouldSpeak && isSystemReady) {
+                const msg = new SpeechSynthesisUtterance("您有新訂單");
+                msg.lang = 'zh-TW';
+                msg.volume = 1.0;
+                window.speechSynthesis.cancel(); // 先取消正在說的話，避免延遲
+                window.speechSynthesis.speak(msg);
+            }
+            knownOrderIds = currentIds;
         }
 
         document.getElementById('rev-val').innerText = "$" + todaySum.toLocaleString();
