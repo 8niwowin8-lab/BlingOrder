@@ -3,43 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder | 大字體管理後台</title>
+    <title>BlingOrder | 今日精準後台</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary-pink: #ff85a2; --bg: #f8f9fa; }
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; padding: 10px; }
-        
-        /* 頂部資訊欄 */
         .admin-header { background: white; padding: 15px 25px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid var(--primary-pink); }
         .revenue-box { background: #333; color: #fff; padding: 10px 20px; border-radius: 10px; text-align: right; }
-        
-        /* 語音按鈕加大 */
         .voice-btn { width: 100%; padding: 20px; background: #2196f3; color: white; border: none; border-radius: 15px; font-weight: bold; margin-bottom: 20px; font-size: 22px; cursor: pointer; box-shadow: 0 4px 0 #1976d2; }
-        .voice-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1976d2; }
-
-        /* 訂單卡片：超大重點 */
         .order-card { background: white; border-radius: 25px; padding: 30px; margin-bottom: 25px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); border: 2px solid #eee; }
-        
-        /* 桌號：超大字體 */
         .table-tag { font-size: 48px; font-weight: 900; color: #fff; background: #333; padding: 10px 30px; border-radius: 15px; display: inline-block; margin-bottom: 20px; }
-        .table-tag.booth { background: var(--primary-pink); } /* 包廂顏色區分 */
-
-        /* 餐點清單：超大字體 */
+        .table-tag.booth { background: var(--primary-pink); }
         .item-list { border-top: 3px solid #eee; padding-top: 20px; }
         .item-row { padding: 15px 0; border-bottom: 2px solid #f9f9f9; color: #000; font-size: 32px; font-weight: 800; line-height: 1.4; }
-        
         .total-info { margin-top: 25px; font-size: 28px; font-weight: bold; color: #d32f2f; text-align: right; }
-        
-        /* 按鈕加大 */
         .btn-done { background: #4caf50; color: white; border: none; padding: 25px; border-radius: 20px; font-weight: bold; margin-top: 25px; width: 100%; font-size: 28px; cursor: pointer; box-shadow: 0 6px 0 #388e3c; }
-        .btn-done:active { transform: translateY(3px); box-shadow: 0 3px 0 #388e3c; }
     </style>
 </head>
 <body>
 
 <div class="admin-header">
-    <h1 style="font-size:28px; color:var(--primary-pink); margin:0;">💎 新訂單監控</h1>
+    <h1 style="font-size:28px; color:var(--primary-pink); margin:0;">💎 今日訂單 (精準版)</h1>
     <div class="revenue-box">
         <div style="font-size:14px; opacity:0.8;">今日營收</div>
         <div id="rev-val" style="font-size:32px; font-weight:900;">$0</div>
@@ -49,7 +34,7 @@
 <button class="voice-btn" onclick="startVoice()" id="v-btn">🔊 點我：開啟語音播報</button>
 
 <div id="list-box">
-    <p style="text-align:center; padding:100px 0; color:#999; font-size:30px;">等待訂單中...</p>
+    <p style="text-align:center; padding:100px 0; color:#999; font-size:30px;">正在過濾歷史資料，請稍候...</p>
 </div>
 
 <script>
@@ -65,17 +50,16 @@
 
     let canSpeak = false;
     let knownOrderIds = new Set();
+    const todayStr = new Date().toLocaleDateString('zh-TW'); // 今天 2026/2/20
 
     function startVoice() {
         canSpeak = true;
         document.getElementById('v-btn').innerText = "✅ 語音提醒已啟動";
         document.getElementById('v-btn').style.background = "#8bc34a";
-        const msg = new SpeechSynthesisUtterance("語音系統已啟動，祝您生意興隆");
+        const msg = new SpeechSynthesisUtterance("語音系統已啟動");
         msg.lang = 'zh-TW';
         window.speechSynthesis.speak(msg);
     }
-
-    const todayStr = new Date().toLocaleDateString('zh-TW');
 
     db.ref('orders').on('value', snap => {
         const listBox = document.getElementById('list-box');
@@ -88,31 +72,33 @@
             const o = child.val();
             const id = child.key;
             
-            // 計算今日營收
+            // 關鍵過濾：取得這張單子的日期
             const orderDate = new Date(parseInt(o.timestamp || id)).toLocaleDateString('zh-TW');
+
+            // 只有「今天」且「未結帳」的訂單才會顯示在畫面上
             if (orderDate === todayStr) {
+                // 累計今日營收
                 todaySum += parseInt(o.total || 0);
-            }
 
-            // 顯示所有「未結帳」訂單
-            if (o.status !== "已結帳") {
-                if (!knownOrderIds.has(id) && knownOrderIds.size > 0) {
-                    foundNew = true;
+                if (o.status !== "已結帳") {
+                    if (!knownOrderIds.has(id) && knownOrderIds.size > 0) {
+                        foundNew = true;
+                    }
+                    knownOrderIds.add(id);
+
+                    const isBooth = (o.table == "7" || o.table == "包廂");
+                    const tableShow = isBooth ? "💎 包廂" : "第 " + o.table + " 桌";
+                    let itemsHtml = (o.items || []).map(i => `<div class="item-row">● ${i}</div>`).join('');
+                    
+                    const card = `
+                        <div class="order-card">
+                            <span class="table-tag ${isBooth ? 'booth' : ''}">${tableShow}</span>
+                            <div class="item-list">${itemsHtml}</div>
+                            <div class="total-info">金額：$${o.total}</div>
+                            <button class="btn-done" onclick="finishOrder('${id}')">✓ 結帳完成</button>
+                        </div>`;
+                    listBox.innerHTML = card + listBox.innerHTML; 
                 }
-                knownOrderIds.add(id);
-
-                const isBooth = (o.table == "7" || o.table == "包廂");
-                const tableShow = isBooth ? "💎 包廂" : "第 " + o.table + " 桌";
-                let itemsHtml = (o.items || []).map(i => `<div class="item-row">● ${i}</div>`).join('');
-                
-                const card = `
-                    <div class="order-card">
-                        <span class="table-tag ${isBooth ? 'booth' : ''}">${tableShow}</span>
-                        <div class="item-list">${itemsHtml}</div>
-                        <div class="total-info">應收金額：$${o.total}</div>
-                        <button class="btn-done" onclick="finishOrder('${id}')">✓ 結帳完成</button>
-                    </div>`;
-                listBox.innerHTML = card + listBox.innerHTML; 
             }
         });
 
@@ -124,12 +110,12 @@
 
         document.getElementById('rev-val').innerText = "$" + todaySum.toLocaleString();
         if (listBox.innerHTML === "") {
-            listBox.innerHTML = `<p style="text-align:center; padding:100px 0; color:#ccc; font-size:35px; font-weight:bold;">目前沒有待處理訂單</p>`;
+            listBox.innerHTML = `<p style="text-align:center; padding:100px 0; color:#ccc; font-size:35px; font-weight:bold;">今日暫無待處理訂單</p>`;
         }
     });
 
     function finishOrder(id) {
-        if(confirm("確定這筆訂單結帳完成了嗎？")) {
+        if(confirm("確定這筆結帳完成了嗎？")) {
             db.ref('orders/' + id).update({ status: "已結帳" });
         }
     }
