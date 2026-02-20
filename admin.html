@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder | 後台管理系統</title>
+    <title>BlingOrder | 後台管理 (今日營收修正版)</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
@@ -13,18 +13,19 @@
         .admin-title { font-size: 24px; font-weight: bold; color: var(--primary-pink); margin: 0; }
         
         /* 營業額統計卡片 */
-        .revenue-box { background: var(--primary-pink); color: white; padding: 15px 30px; border-radius: 15px; text-align: right; }
+        .revenue-box { background: var(--primary-pink); color: white; padding: 15px 30px; border-radius: 15px; text-align: right; min-width: 150px; }
         .rev-label { font-size: 14px; opacity: 0.9; font-weight: bold; }
         .rev-val { font-size: 28px; font-weight: 800; }
 
         /* 管理選單 */
-        .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 30px; }
         .nav-card { background: white; padding: 20px; border-radius: 15px; text-align: center; text-decoration: none; color: #555; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #eee; transition: 0.3s; }
         .nav-card:hover { border-color: var(--primary-pink); color: var(--primary-pink); transform: translateY(-3px); }
         .nav-icon { font-size: 24px; display: block; margin-bottom: 8px; }
 
-        .section-title { font-size: 18px; font-weight: bold; color: #333; margin: 30px 0 15px 5px; border-left: 4px solid var(--primary-pink); padding-left: 10px; }
-        .info-text { color: #888; font-size: 14px; margin-left: 5px; }
+        .status-panel { background: #fff; padding: 20px; border-radius: 15px; border: 1px solid #eee; }
+        .info-text { color: #888; font-size: 14px; }
+        .highlight { color: var(--primary-pink); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -32,10 +33,10 @@
 <div class="admin-header">
     <div>
         <h1 class="admin-title">🎀 BlingOrder 後台管理</h1>
-        <p id="today-date-label" style="margin: 5px 0 0 0; color: #aaa; font-weight: bold;"></p>
+        <p id="today-date-label" style="margin: 5px 0 0 0; color: #aaa; font-weight: bold; font-size: 14px;"></p>
     </div>
     <div class="revenue-box">
-        <div class="rev-label">今日營業額</div>
+        <div class="rev-label">今日營收 (純當日)</div>
         <div class="rev-val" id="admin-today-rev">$0</div>
     </div>
 </div>
@@ -47,8 +48,12 @@
     <a href="index.html" class="nav-card"><span class="nav-icon">🛒</span>前往點餐頁</a>
 </div>
 
-<div class="section-title">系統狀態</div>
-<p class="info-text">目前系統運作正常，即時監控 Firebase 資料庫中...</p>
+<div class="status-panel">
+    <h3 style="margin-top:0; color:#444;">系統同步狀態</h3>
+    <p class="info-text">● 目前登入身分：<span class="highlight">管理者 Eden</span></p>
+    <p class="info-text">● 資料庫連線：<span style="color: #2ecc71; font-weight:bold;">已連線至 Firebase</span></p>
+    <p class="info-text">● 包廂對應狀態：<span class="highlight">7 號桌已自動轉譯為「包廂」</span></p>
+</div>
 
 <script>
     const firebaseConfig = {
@@ -61,26 +66,33 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 核心邏輯：自動獲取今天日期
-    const todayStr = new Date().toLocaleDateString('zh-TW');
-    document.getElementById('today-date-label').innerText = `管理基準日：${todayStr}`;
+    // 取得「今天」的日期字串，例如 "2026/2/20"
+    function getTodayStr() {
+        return new Date().toLocaleDateString('zh-TW');
+    }
 
-    // 監聽訂單以計算「今日營業額」
+    // 監聽訂單
     db.ref('orders').on('value', snap => {
         let todaySum = 0;
-        
+        const todayStr = getTodayStr();
+        document.getElementById('today-date-label').innerText = `管理基準日：${todayStr}`;
+
         snap.forEach(child => {
             const o = child.val();
-            // 從 child.key (時間戳) 取得該訂單的日期
-            const orderDate = new Date(parseInt(child.key)).toLocaleDateString('zh-TW');
             
-            // 如果訂單日期等於今天，才計入營業額
+            // 從 timestamp 或是 child.key 轉換出訂單的日期
+            // 這裡使用 parseInt 確保它是數字格式
+            const orderTimestamp = parseInt(o.timestamp || child.key);
+            const orderDate = new Date(orderTimestamp).toLocaleDateString('zh-TW');
+            
+            // 關鍵過濾：只有日期字串完全吻合「今天」，才加總進去
             if (orderDate === todayStr) {
+                // 如果是免單，total 應該是 0，所以直接加總即可
                 todaySum += parseInt(o.total || 0);
             }
         });
 
-        // 更新顯示金額
+        // 更新介面
         const revDisplay = document.getElementById('admin-today-rev');
         if (revDisplay) {
             revDisplay.innerText = `$${todaySum.toLocaleString()}`;
