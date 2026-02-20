@@ -3,57 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder | 完整數據報表</title>
+    <title>BlingOrder | 完整數據管理</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
-        :root { --primary-pink: #ff85a2; --bg: #fcfcfc; }
-        body { font-family: "PingFang TC", sans-serif; background: var(--bg); margin: 0; padding: 15px; }
+        :root { --primary-pink: #ff85a2; --free-green: #4caf50; --del-red: #f44336; }
+        body { font-family: "PingFang TC", sans-serif; background: #f0f2f5; margin: 0; padding: 10px; }
         
-        /* 統計資訊 */
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
-        .stat-card { background: white; padding: 15px 5px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; border: 1px solid #fff0f3; }
-        .stat-val { font-size: 20px; font-weight: 800; color: var(--primary-pink); display: block; }
-        .stat-label { font-size: 12px; color: #999; font-weight: bold; }
+        /* 數據統計區 */
+        .stats-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: #333; color: white; padding: 12px 5px; border-radius: 12px; text-align: center; border-bottom: 4px solid var(--primary-pink); }
+        .stat-val { font-size: 18px; font-weight: bold; color: var(--primary-pink); display: block; }
+        .stat-label { font-size: 11px; opacity: 0.8; }
 
-        /* 表格區 */
-        .table-container { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th { background: #fdf2f4; color: #888; padding: 12px; text-align: left; }
-        td { padding: 12px; border-bottom: 1px solid #f9f9f9; vertical-align: middle; }
+        /* 訂單卡片 */
+        .order-item { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 6px solid var(--primary-pink); }
+        .order-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         
-        .tag-booth { color: var(--primary-pink); font-weight: bold; }
-        .free-order { color: #4caf50; font-weight: bold; text-decoration: line-through; }
+        /* 日期與時間字體優化 */
+        .date-box { font-size: 13px; color: #666; line-height: 1.4; }
+        .date-text { color: #999; font-size: 11px; }
+        .time-text { font-size: 18px; font-weight: bold; color: #333; }
         
-        /* 功能按鈕 */
-        .btn-action { border: none; padding: 8px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; margin: 2px; }
-        .btn-free { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
-        .btn-del { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
-        .btn-back { display: block; width: 100%; text-align: center; padding: 15px; background: #eee; color: #333; text-decoration: none; border-radius: 12px; margin-bottom: 15px; font-weight: bold; }
+        .order-table { font-size: 20px; font-weight: 900; color: #333; margin-left: 10px; }
+        .order-price { font-size: 22px; font-weight: 900; color: var(--primary-pink); }
+        .order-price.is-free { color: var(--free-green); text-decoration: line-through; }
+        
+        .food-list { font-size: 15px; color: #444; background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px dashed #ddd; }
+        
+        .action-row { display: flex; gap: 8px; }
+        .btn-act { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-free { background: #e8f5e9; color: var(--free-green); border: 1px solid var(--free-green); }
+        .btn-del { background: #ffebee; color: var(--del-red); border: 1px solid var(--del-red); }
+        
+        .btn-back { display: block; width: 100%; text-align: center; padding: 15px; background: white; color: #333; text-decoration: none; border-radius: 12px; margin-bottom: 15px; font-weight: bold; border: 2px solid #ddd; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
 <a href="admin.html" class="btn-back">⬅ 返回接單後台</a>
 
-<div class="stats-grid">
-    <div class="stat-card"><span class="stat-label">今日營收</span><span class="stat-val" id="today-revenue">$0</span></div>
-    <div class="stat-card"><span class="stat-label">總單數</span><span class="stat-val" id="today-count">0</span></div>
-    <div class="stat-card"><span class="stat-label">客單價</span><span class="stat-val" id="today-avg">$0</span></div>
+<div class="stats-container">
+    <div class="stat-card"><span class="stat-label">今日營業額</span><span class="stat-val" id="rev-val">$0</span></div>
+    <div class="stat-card"><span class="stat-label">總單數</span><span class="stat-val" id="qty-val">0</span></div>
+    <div class="stat-card"><span class="stat-label">客單價</span><span class="stat-val" id="avg-val">$0</span></div>
 </div>
 
-<div class="table-container">
-    <table>
-        <thead>
-            <tr>
-                <th>時間/桌號</th>
-                <th>金額</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody id="report-body"></tbody>
-    </table>
-</div>
+<div id="main-list"></div>
 
 <script>
     const firebaseConfig = {
@@ -68,67 +64,67 @@
     const todayStr = new Date().toLocaleDateString('zh-TW');
 
     db.ref('orders').on('value', snap => {
-        const tbody = document.getElementById('report-body');
-        tbody.innerHTML = "";
-        let todayRev = 0, todayQty = 0;
-        let ordersArray = [];
+        const container = document.getElementById('main-list');
+        container.innerHTML = "";
+        let rev = 0, qty = 0;
+        let list = [];
 
         snap.forEach(child => {
             const o = child.val();
             o.id = child.key;
-            ordersArray.push(o);
+            list.push(o);
         });
-        ordersArray.reverse();
+        list.reverse();
 
-        ordersArray.forEach(o => {
+        list.forEach(o => {
             const timeObj = new Date(parseInt(o.timestamp || o.id));
-            const dateStr = timeObj.toLocaleDateString('zh-TW');
-            const timeStr = timeObj.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+            const orderDate = timeObj.toLocaleDateString('zh-TW');
+            const orderTime = timeObj.toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'});
 
-            if (dateStr === todayStr) {
-                todayRev += parseInt(o.total || 0);
-                todayQty += 1;
+            if (orderDate === todayStr) {
+                rev += parseInt(o.total || 0);
+                qty += 1;
             }
 
-            const tableShow = (o.table == "7" || o.table == "包廂") ? "<span class='tag-booth'>💎包廂</span>" : o.table + "桌";
-            const isFree = (parseInt(o.total) === 0);
+            const isBooth = (o.table == "7" || o.table == "包廂");
+            const priceStyle = (parseInt(o.total) === 0) ? "is-free" : "";
 
-            tbody.innerHTML += `
-                <tr>
-                    <td><small>${timeStr}</small><br>${tableShow}</td>
-                    <td class="${isFree ? 'free-order' : ''}">$${o.total}</td>
-                    <td>
-                        <button class="btn-action btn-free" onclick="makeFree('${o.id}')">免單</button>
-                        <button class="btn-action btn-del" onclick="deleteOrder('${o.id}')">刪除</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="3" style="font-size:11px; color:#999; padding-top:0; border-bottom: 2px solid #eee;">
-                        品項：${(o.items || []).join(', ')}
-                    </td>
-                </tr>`;
+            container.innerHTML += `
+                <div class="order-item">
+                    <div class="order-info">
+                        <div class="date-box">
+                            <span class="date-text">${orderDate}</span><br>
+                            <span class="time-text">${orderTime}</span>
+                        </div>
+                        <span class="order-table">${isBooth ? '💎 包廂' : o.table + ' 桌'}</span>
+                        <div class="order-price ${priceStyle}">$${o.total}</div>
+                    </div>
+                    <div class="food-list"><b>明細：</b>${(o.items || []).join('、')}</div>
+                    <div class="action-row">
+                        <button class="btn-act btn-free" onclick="doFree('${o.id}')">🎁 免單</button>
+                        <button class="btn-act btn-del" onclick="doDel('${o.id}')">🗑 刪除</button>
+                    </div>
+                </div>`;
         });
 
-        document.getElementById('today-revenue').innerText = `$${todayRev.toLocaleString()}`;
-        document.getElementById('today-count').innerText = `${todayQty}單`;
-        const avg = todayQty > 0 ? Math.round(todayRev / todayQty) : 0;
-        document.getElementById('today-avg').innerText = `$${avg}`;
+        document.getElementById('rev-val').innerText = `$${rev.toLocaleString()}`;
+        document.getElementById('qty-val').innerText = `${qty} 單`;
+        document.getElementById('avg-val').innerText = `$${qty > 0 ? Math.round(rev/qty) : 0}`;
+        
+        if(container.innerHTML === "") container.innerHTML = "<p style='text-align:center; padding:50px; color:#999;'>尚無訂單資料</p>";
     });
 
-    // 免單功能：將金額改為 0
-    function makeFree(id) {
-        if(confirm("確定要將此訂單改為「免單 (0元)」嗎？")) {
+    function doFree(id) {
+        if(confirm("確定要將這筆訂單改為 0 元嗎？")) {
             db.ref('orders/' + id).update({ total: 0 });
         }
     }
 
-    // 刪除功能：徹底從資料庫移除
-    function deleteOrder(id) {
-        if(confirm("確定要【永久刪除】這筆訂單嗎？刪除後無法恢復喔！")) {
+    function doDel(id) {
+        if(confirm("【永久刪除警告】\n確定要刪除這筆訂單嗎？刪除後將不計入營業額！")) {
             db.ref('orders/' + id).remove();
         }
     }
 </script>
-
 </body>
 </html>
