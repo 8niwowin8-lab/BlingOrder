@@ -3,60 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder | 廚房接單系統</title>
+    <title>BlingOrder | 後台管理系統</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
-        :root { --primary-pink: #ff85a2; --bg-gray: #f8f9fa; }
-        body { font-family: "PingFang TC", sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; }
+        :root { --primary-pink: #ff85a2; --soft-pink: #fffafa; }
+        body { font-family: "PingFang TC", sans-serif; background: var(--soft-pink); margin: 0; padding: 20px; }
+        .admin-header { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #fff0f3; }
+        .admin-title { font-size: 24px; font-weight: bold; color: var(--primary-pink); margin: 0; }
         
-        /* 啟動音效提醒 */
-        #audio-unlock-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,133,162,0.9); z-index: 9999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: white; font-size: 24px; font-weight: bold; text-align: center;
-        }
-        .unlock-btn {
-            background: white; color: var(--primary-pink); border: none;
-            padding: 20px 40px; border-radius: 50px; font-size: 28px;
-            margin-top: 20px; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        }
+        /* 營業額統計卡片 */
+        .revenue-box { background: var(--primary-pink); color: white; padding: 15px 30px; border-radius: 15px; text-align: right; }
+        .rev-label { font-size: 14px; opacity: 0.9; font-weight: bold; }
+        .rev-val { font-size: 28px; font-weight: 800; }
 
-        .top-bar { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        .system-title { font-size: 28px; font-weight: 800; color: var(--primary-pink); }
-        .order-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 25px; }
-        .order-card { 
-            background: white; border-radius: 25px; padding: 30px; 
-            box-shadow: 0 8px 30px rgba(0,0,0,0.1); border-left: 20px solid var(--primary-pink);
-            display: flex; flex-direction: column; animation: fadeIn 0.3s ease-out;
-        }
-        .table-num { font-size: 50px; font-weight: 900; color: #222; }
-        .item-list { font-size: 38px; font-weight: bold; color: #444; line-height: 1.5; margin-bottom: 25px; flex-grow: 1; }
-        .btn-done { background: #4CAF50; color: white; border: none; padding: 20px 45px; border-radius: 15px; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .nav-link { position: fixed; bottom: 20px; right: 20px; color: #ccc; text-decoration: none; font-size: 14px; }
+        /* 管理選單 */
+        .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .nav-card { background: white; padding: 20px; border-radius: 15px; text-align: center; text-decoration: none; color: #555; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #eee; transition: 0.3s; }
+        .nav-card:hover { border-color: var(--primary-pink); color: var(--primary-pink); transform: translateY(-3px); }
+        .nav-icon { font-size: 24px; display: block; margin-bottom: 8px; }
+
+        .section-title { font-size: 18px; font-weight: bold; color: #333; margin: 30px 0 15px 5px; border-left: 4px solid var(--primary-pink); padding-left: 10px; }
+        .info-text { color: #888; font-size: 14px; margin-left: 5px; }
     </style>
 </head>
 <body>
 
-<div id="audio-unlock-overlay">
-    <div>📢 歡迎回來！為了啟動新訂單通知音效</div>
-    <button class="unlock-btn" onclick="unlockAudio()">點擊這裡啟動系統</button>
-</div>
-
-<audio id="noticeSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
-
-<div class="top-bar">
-    <div class="system-title">BlingOrder 廚房接單 ✨</div>
-    <div style="text-align: right;">
-        <div style="font-size: 16px; color: #888;">今日營收</div>
-        <div style="font-size: 32px; font-weight: bold;" id="stats-area">$0</div>
+<div class="admin-header">
+    <div>
+        <h1 class="admin-title">🎀 BlingOrder 後台管理</h1>
+        <p id="today-date-label" style="margin: 5px 0 0 0; color: #aaa; font-weight: bold;"></p>
+    </div>
+    <div class="revenue-box">
+        <div class="rev-label">今日營業額</div>
+        <div class="rev-val" id="admin-today-rev">$0</div>
     </div>
 </div>
 
-<div class="order-container" id="order-list"></div>
+<div class="nav-grid">
+    <a href="menu-admin.html" class="nav-card"><span class="nav-icon">🍔</span>菜單管理</a>
+    <a href="report.html" class="nav-card"><span class="nav-icon">📊</span>營收報表</a>
+    <a href="dashboard.html" class="nav-card"><span class="nav-icon">📈</span>數據分析</a>
+    <a href="index.html" class="nav-card"><span class="nav-icon">🛒</span>前往點餐頁</a>
+</div>
 
-<a href="menu-edit.html" class="nav-link">⚙️ 進入菜單管理</a>
+<div class="section-title">系統狀態</div>
+<p class="info-text">目前系統運作正常，即時監控 Firebase 資料庫中...</p>
 
 <script>
     const firebaseConfig = {
@@ -69,75 +61,31 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 關鍵修復：解鎖音效與語音
-    function unlockAudio() {
-        // 播放一次短促的靜音或測試音
-        const sound = document.getElementById('noticeSound');
-        sound.play().then(() => {
-            sound.pause();
-            sound.currentTime = 0;
-            // 語音測試
-            if ('speechSynthesis' in window) {
-                const msg = new SpeechSynthesisUtterance("系統已啟動");
-                msg.lang = 'zh-TW';
-                window.speechSynthesis.speak(msg);
-            }
-            // 隱藏覆蓋層
-            document.getElementById('audio-unlock-overlay').style.display = 'none';
-        }).catch(e => alert("請再試一次！"));
-    }
+    // 核心邏輯：自動獲取今天日期
+    const todayStr = new Date().toLocaleDateString('zh-TW');
+    document.getElementById('today-date-label').innerText = `管理基準日：${todayStr}`;
 
-    function playNotice() {
-        const sound = document.getElementById('noticeSound');
-        sound.currentTime = 0;
-        sound.play().catch(e => console.log("音效播放受阻"));
-        
-        if ('speechSynthesis' in window) {
-            const msg = new SpeechSynthesisUtterance("您有新訂單");
-            msg.lang = 'zh-TW';
-            window.speechSynthesis.speak(msg);
-        }
-    }
-
-    let firstLoad = true;
-    // 監聽新訂單（子節點加入）
-    db.ref('orders').on('child_added', snap => {
-        if (!firstLoad) {
-            playNotice();
-        }
-    });
-
-    // 監聽所有訂單（渲染畫面）
+    // 監聽訂單以計算「今日營業額」
     db.ref('orders').on('value', snap => {
-        const list = document.getElementById('order-list');
-        list.innerHTML = "";
-        let dailyTotal = 0;
+        let todaySum = 0;
         
         snap.forEach(child => {
             const o = child.val();
-            if(o.status === "待處理") {
-                const itemsHtml = o.items.map(item => `<div>• ${item}</div>`).join('');
-                list.innerHTML += `
-                    <div class="order-card">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:2px solid #f0f0f0; padding-bottom:15px;">
-                            <span class="table-num">${o.table} 桌</span>
-                            <span style="font-size:20px; color:#aaa; margin-top:15px;">${o.time}</span>
-                        </div>
-                        <div class="item-list">${itemsHtml}</div>
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:26px; color:var(--primary-pink); font-weight:bold;">$${o.total}</span>
-                            <button class="btn-done" onclick="finishOrder('${child.key}')">完成出餐</button>
-                        </div>
-                    </div>
-                `;
+            // 從 child.key (時間戳) 取得該訂單的日期
+            const orderDate = new Date(parseInt(child.key)).toLocaleDateString('zh-TW');
+            
+            // 如果訂單日期等於今天，才計入營業額
+            if (orderDate === todayStr) {
+                todaySum += parseInt(o.total || 0);
             }
-            if(o.status === "已完成") dailyTotal += parseInt(o.total);
         });
-        document.getElementById('stats-area').innerText = `$${dailyTotal}`;
-        firstLoad = false;
-    });
 
-    function finishOrder(id) { db.ref('orders/'+id).update({ status: '已完成' }); }
+        // 更新顯示金額
+        const revDisplay = document.getElementById('admin-today-rev');
+        if (revDisplay) {
+            revDisplay.innerText = `$${todaySum.toLocaleString()}`;
+        }
+    });
 </script>
 </body>
 </html>
