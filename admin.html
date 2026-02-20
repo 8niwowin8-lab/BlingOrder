@@ -3,42 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BlingOrder | 終極監控後台</title>
+    <title>BlingOrder | 大字體管理後台</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.0/firebase-database-compat.js"></script>
     <style>
-        :root { --primary-pink: #ff85a2; --soft-pink: #fffafa; }
-        body { font-family: "PingFang TC", sans-serif; background: #fdfdfd; margin: 0; padding: 15px; }
-        .admin-header { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border: 2px solid var(--primary-pink); }
-        .revenue-box { background: var(--primary-pink); color: white; padding: 10px 20px; border-radius: 12px; text-align: right; }
+        :root { --primary-pink: #ff85a2; --bg: #f8f9fa; }
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; padding: 10px; }
         
-        .order-card { background: white; border-radius: 20px; padding: 25px; margin-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border-left: 12px solid #333; }
-        .table-tag { font-size: 32px; font-weight: 900; color: #333; margin-bottom: 15px; display: block; background: #eee; padding: 5px 15px; border-radius: 10px; width: fit-content; }
-        .item-list { border-top: 2px solid #eee; padding-top: 15px; }
-        .item-row { padding: 12px 0; border-bottom: 1px solid #f0f0f0; color: #000; font-size: 24px; font-weight: bold; }
-        .total-info { margin-top: 20px; font-size: 22px; font-weight: 800; color: #e91e63; text-align: right; }
+        /* 頂部資訊欄 */
+        .admin-header { background: white; padding: 15px 25px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid var(--primary-pink); }
+        .revenue-box { background: #333; color: #fff; padding: 10px 20px; border-radius: 10px; text-align: right; }
         
-        .btn-done { background: #4caf50; color: white; border: none; padding: 20px; border-radius: 15px; font-weight: bold; margin-top: 20px; width: 100%; font-size: 20px; cursor: pointer; }
-        .voice-btn { width: 100%; padding: 15px; background: #2196f3; color: white; border: none; border-radius: 15px; font-weight: bold; margin-bottom: 20px; font-size: 18px; }
+        /* 語音按鈕加大 */
+        .voice-btn { width: 100%; padding: 20px; background: #2196f3; color: white; border: none; border-radius: 15px; font-weight: bold; margin-bottom: 20px; font-size: 22px; cursor: pointer; box-shadow: 0 4px 0 #1976d2; }
+        .voice-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1976d2; }
+
+        /* 訂單卡片：超大重點 */
+        .order-card { background: white; border-radius: 25px; padding: 30px; margin-bottom: 25px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); border: 2px solid #eee; }
+        
+        /* 桌號：超大字體 */
+        .table-tag { font-size: 48px; font-weight: 900; color: #fff; background: #333; padding: 10px 30px; border-radius: 15px; display: inline-block; margin-bottom: 20px; }
+        .table-tag.booth { background: var(--primary-pink); } /* 包廂顏色區分 */
+
+        /* 餐點清單：超大字體 */
+        .item-list { border-top: 3px solid #eee; padding-top: 20px; }
+        .item-row { padding: 15px 0; border-bottom: 2px solid #f9f9f9; color: #000; font-size: 32px; font-weight: 800; line-height: 1.4; }
+        
+        .total-info { margin-top: 25px; font-size: 28px; font-weight: bold; color: #d32f2f; text-align: right; }
+        
+        /* 按鈕加大 */
+        .btn-done { background: #4caf50; color: white; border: none; padding: 25px; border-radius: 20px; font-weight: bold; margin-top: 25px; width: 100%; font-size: 28px; cursor: pointer; box-shadow: 0 6px 0 #388e3c; }
+        .btn-done:active { transform: translateY(3px); box-shadow: 0 3px 0 #388e3c; }
     </style>
 </head>
 <body>
 
 <div class="admin-header">
-    <div>
-        <h1 style="font-size:24px; color:var(--primary-pink); margin:0;">💎 即時訂單 (所有)</h1>
-        <p style="margin:5px 0; font-size:14px; color:#888;">請開啟語音並保持畫面開啟</p>
-    </div>
+    <h1 style="font-size:28px; color:var(--primary-pink); margin:0;">💎 新訂單監控</h1>
     <div class="revenue-box">
-        <div style="font-size:12px;">今日累計</div>
-        <div id="rev-val" style="font-size:26px; font-weight:800;">$0</div>
+        <div style="font-size:14px; opacity:0.8;">今日營收</div>
+        <div id="rev-val" style="font-size:32px; font-weight:900;">$0</div>
     </div>
 </div>
 
-<button class="voice-btn" onclick="startVoice()" id="v-btn">🔊 點我：開啟語音提醒</button>
+<button class="voice-btn" onclick="startVoice()" id="v-btn">🔊 點我：開啟語音播報</button>
 
 <div id="list-box">
-    <p style="text-align:center; padding:50px; color:#999; font-size:20px;">正在讀取訂單中...</p>
+    <p style="text-align:center; padding:100px 0; color:#999; font-size:30px;">等待訂單中...</p>
 </div>
 
 <script>
@@ -57,9 +68,9 @@
 
     function startVoice() {
         canSpeak = true;
-        document.getElementById('v-btn').innerText = "✅ 語音已就緒";
+        document.getElementById('v-btn').innerText = "✅ 語音提醒已啟動";
         document.getElementById('v-btn').style.background = "#8bc34a";
-        const msg = new SpeechSynthesisUtterance("語音系統開啟");
+        const msg = new SpeechSynthesisUtterance("語音系統已啟動，祝您生意興隆");
         msg.lang = 'zh-TW';
         window.speechSynthesis.speak(msg);
     }
@@ -77,29 +88,29 @@
             const o = child.val();
             const id = child.key;
             
-            // 計算今日營收 (比對日期)
+            // 計算今日營收
             const orderDate = new Date(parseInt(o.timestamp || id)).toLocaleDateString('zh-TW');
             if (orderDate === todayStr) {
                 todaySum += parseInt(o.total || 0);
             }
 
-            // 只要 status 不是 "已結帳"，通通顯示出來 (確保一定看得到)
+            // 顯示所有「未結帳」訂單
             if (o.status !== "已結帳") {
-                // 檢查是否為新訂單(語音用)
                 if (!knownOrderIds.has(id) && knownOrderIds.size > 0) {
                     foundNew = true;
                 }
                 knownOrderIds.add(id);
 
-                const tableShow = (o.table == "7" || o.table == "包廂") ? "✨ 包廂" : "第 " + o.table + " 桌";
+                const isBooth = (o.table == "7" || o.table == "包廂");
+                const tableShow = isBooth ? "💎 包廂" : "第 " + o.table + " 桌";
                 let itemsHtml = (o.items || []).map(i => `<div class="item-row">● ${i}</div>`).join('');
                 
                 const card = `
                     <div class="order-card">
-                        <span class="table-tag">${tableShow}</span>
+                        <span class="table-tag ${isBooth ? 'booth' : ''}">${tableShow}</span>
                         <div class="item-list">${itemsHtml}</div>
-                        <div class="total-info">金額：$${o.total}</div>
-                        <button class="btn-done" onclick="finishOrder('${id}')">✓ 完成下單/結帳</button>
+                        <div class="total-info">應收金額：$${o.total}</div>
+                        <button class="btn-done" onclick="finishOrder('${id}')">✓ 結帳完成</button>
                     </div>`;
                 listBox.innerHTML = card + listBox.innerHTML; 
             }
@@ -113,12 +124,12 @@
 
         document.getElementById('rev-val').innerText = "$" + todaySum.toLocaleString();
         if (listBox.innerHTML === "") {
-            listBox.innerHTML = `<p style="text-align:center; padding:50px; color:#ccc; font-size:20px;">目前沒有待處理訂單</p>`;
+            listBox.innerHTML = `<p style="text-align:center; padding:100px 0; color:#ccc; font-size:35px; font-weight:bold;">目前沒有待處理訂單</p>`;
         }
     });
 
     function finishOrder(id) {
-        if(confirm("確定完成這筆訂單？完成後會從畫面上消失並計入報表。")) {
+        if(confirm("確定這筆訂單結帳完成了嗎？")) {
             db.ref('orders/' + id).update({ status: "已結帳" });
         }
     }
