@@ -12,11 +12,10 @@
         input[type="text"], input[type="number"] { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .sold-out-box { background: #fff0f3; padding: 12px; border-radius: 8px; margin: 10px 0; border: 1px solid #ffccd5; display: flex; align-items: center; gap: 8px; }
         .btn-save { width: 100%; padding: 15px; background: var(--primary-pink); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 18px; margin-top: 10px; }
-        
+       
         table { width: 100%; background: white; border-collapse: collapse; margin-top: 20px; border-radius: 10px; overflow: hidden; }
         th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
-        
-        /* 修正按鈕排列樣式 */
+       
         .action-btns { display: flex; gap: 8px; }
         .btn-action { padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #ddd; font-weight: bold; font-size: 13px; }
         .btn-edit { background: #e3f2fd; color: #1976d2; }
@@ -25,7 +24,6 @@
     </style>
 </head>
 <body>
-
 <div class="edit-panel">
     <h3>✨ 菜單內容管理</h3>
     <input type="hidden" id="edit-id">
@@ -34,12 +32,10 @@
     <input type="number" id="price" placeholder="價格">
     <input type="text" id="image-path" placeholder="圖片路徑 (images/檔名.jpg)">
     <input type="text" id="staff-note" placeholder="工作人員警語">
-
     <div class="sold-out-box">
         <input type="checkbox" id="is-sold-out" style="width:18px; height:18px;">
         <label for="is-sold-out" style="color:#d32f2f; font-weight:bold; cursor:pointer;">🔴 設定為「今日已售完」 (勾選後前端按鈕將變灰)</label>
     </div>
-
     <div style="margin: 15px 0;">
         <label><input type="checkbox" class="addon" value="冰"> 冰</label>
         <label><input type="checkbox" class="addon" value="去冰"> 去冰</label>
@@ -47,30 +43,40 @@
         <label><input type="checkbox" class="addon" value="無糖"> 無糖</label>
         <label><input type="checkbox" class="addon" value="加糖"> 加糖</label>
     </div>
-
+    <!-- 五辛素 / 蛋奶素 -->
+    <div style="margin: 15px 0;">
+        <label><input type="checkbox" class="addon" value="五辛素"> 五辛素</label>
+        <label><input type="checkbox" class="addon" value="蛋奶素"> 蛋奶素</label>
+    </div>
+    <!-- 餐點介紹 -->
+    <div style="margin: 15px 0;">
+        <label>餐點介紹：</label><br>
+        <textarea id="description" rows="4" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:16px;" placeholder="請填寫口味、甜度建議、成分說明、熱量等資訊..."></textarea>
+    </div>
     <button class="btn-save" onclick="saveItem()">儲存並發布 ✨</button>
 </div>
-
 <table>
     <thead>
         <tr><th>分類</th><th>圖片</th><th>名稱/價格</th><th>當前狀態</th><th>操作</th></tr>
     </thead>
     <tbody id="menu-tbody"></tbody>
 </table>
-
 <script>
     const firebaseConfig = {
-        apiKey: "AIzaSyBTeLTAX-F5i3WHKYY0ITZsla0Qgs5e2zQ",
-        authDomain: "blingorder.firebaseapp.com",
-        projectId: "blingorder",
-        databaseURL: "https://blingorder-default-rtdb.firebaseio.com",
-        appId: "1:798993901664:web:9c2023b419ae099fe9fb05"
+        apiKey: "AIzaSyCZDLj-2nQlj34yE8mXlynhYczMfsVqWxE",
+        authDomain: "b-test-54722.firebaseapp.com",
+        projectId: "b-test-54722",
+        databaseURL: "https://b-test-54722-default-rtdb.asia-southeast1.firebasedatabase.app",
+        storageBucket: "b-test-54722.firebasestorage.app",
+        messagingSenderId: "224486979893",
+        appId: "1:224486979893:web:9527007e7bcf128e5ab47c",
+        measurementId: "G-5LY63TENT4"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     function saveItem() {
-        const id = document.getElementById('edit-id').value || Date.now();
+        const id = document.getElementById('edit-id').value || Date.now().toString();
         const addons = [];
         document.querySelectorAll('.addon:checked').forEach(cb => addons.push(cb.value));
 
@@ -80,11 +86,17 @@
             price: document.getElementById('price').value,
             image: document.getElementById('image-path').value,
             staffNote: document.getElementById('staff-note').value || "",
-            isSoldOut: document.getElementById('is-sold-out').checked,
-            addons: addons
+            description: document.getElementById('description').value || "",
+            addons: addons,
+            isSoldOut: document.getElementById('is-sold-out').checked
         };
+
         if(!data.name || !data.price) return alert("名稱與價格為必填！");
-        db.ref('menu/' + id).set(data).then(() => { alert("已儲存！"); location.reload(); });
+
+        db.ref('menu/' + id).set(data).then(() => {
+            alert("已儲存！");
+            location.reload();
+        }).catch(err => alert("儲存失敗：" + err.message));
     }
 
     db.ref('menu').on('value', snap => {
@@ -94,7 +106,7 @@
             const i = child.val();
             const statusColor = i.isSoldOut ? 'background:#ffebee; color:#d32f2f;' : 'background:#e8f5e9; color:#2e7d32;';
             const statusText = i.isSoldOut ? '已售完' : '供餐中';
-            
+           
             tbody.innerHTML += `
                 <tr>
                     <td>${i.category}</td>
@@ -115,13 +127,14 @@
         db.ref('menu/' + id).once('value', snap => {
             const i = snap.val();
             document.getElementById('edit-id').value = id;
-            document.getElementById('category').value = i.category;
-            document.getElementById('name').value = i.name;
-            document.getElementById('price').value = i.price;
-            document.getElementById('image-path').value = i.image;
-            document.getElementById('staff-note').value = i.staffNote;
+            document.getElementById('category').value = i.category || '';
+            document.getElementById('name').value = i.name || '';
+            document.getElementById('price').value = i.price || '';
+            document.getElementById('image-path').value = i.image || '';
+            document.getElementById('staff-note').value = i.staffNote || '';
+            document.getElementById('description').value = i.description || '';
             document.getElementById('is-sold-out').checked = i.isSoldOut || false;
-            
+           
             document.querySelectorAll('.addon').forEach(cb => {
                 cb.checked = (i.addons || []).includes(cb.value);
             });
